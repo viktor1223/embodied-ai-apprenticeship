@@ -21,3 +21,23 @@
 - Demo: build blink → run in Wokwi → see LED blink → change delay → rebuild → faster blink
 - Workflow loop: edit code → compile → simulate → observe
 
+---
+
+## Key Reference: Arduino Pin Types
+
+This table surfaced during Lab 2 and is foundational for all wiring:
+
+| Pin type | Direction | What it does |
+|----------|-----------|-------------|
+| A0–A5 (analog) | **Input** — reads from the world | Converts voltage → number (ADC) |
+| PWM pins (3,5,6,9,10,11) | **Output** — writes to the world | Sends pulsed signal to control things |
+| Digital pins (2–13) | **Input or Output** | Read HIGH/LOW or write HIGH/LOW |
+| 5V / 3.3V | Power out | Constant voltage supply |
+| GND | Ground | Common return path |
+
+**Common misconceptions that surfaced:**
+- VCC on a component = power input, not signal output
+- PWM pins cannot read analog values — they only write
+- Multiple components can share 5V and GND (like a power strip)
+- Standard servos = 0–180° position; DC motors = continuous rotation
+

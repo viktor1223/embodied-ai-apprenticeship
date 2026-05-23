@@ -122,10 +122,29 @@ Full list: https://docs.wokwi.com/parts/wokwi-arduino-uno
 | Serial output not showing | Add `"serialMonitor": { "display": "auto" }` to diagram.json |
 | Wrong board type | Match the `type` in diagram.json to your `platformio.ini` board |
 | LED brightness looks binary (on/off) | This is a visual limitation of the sim — check Serial Monitor values instead. The PWM is working; Wokwi just doesn't render subtle brightness differences. Verify on real hardware. |
+| Servo doesn't animate visually | Serial output may show correct angle values but the servo arm doesn't move in the sim. Try pin 9 instead of other digital pins. Ultimately, verify on real hardware. |
 
 ### General Rule: Trust the Serial Monitor, Not the Visuals
 
-Wokwi's component rendering (especially LEDs) doesn't faithfully show analog behavior. If you need to verify smooth PWM output or analog changes, **read the serial log** — that's your ground truth in simulation. Save visual confirmation for physical hardware.
+Wokwi's component rendering (especially LEDs and servos) doesn't faithfully show analog behavior. If you need to verify smooth PWM output or analog changes, **read the serial log** — that's your ground truth in simulation. Save visual confirmation for physical hardware.
+
+---
+
+## What Wokwi Is Good For (And What It's Not)
+
+**Use Wokwi for:**
+- Validating your wiring logic (correct pins, correct signal path)
+- Debugging with AI — paste your diagram.json, get feedback on mental model
+- Verifying code logic via Serial Monitor output
+- Fast iteration without risk of burning components
+
+**Do NOT rely on Wokwi for:**
+- Visual confirmation that things actually work (LEDs, servos, motors)
+- Power draw / current behavior (no capacitor simulation, no brownout)
+- Timing-sensitive behavior at the physical level
+- Replacing real hardware testing
+
+**Bottom line:** Wokwi proves your *logic* is right. Physical hardware proves your *system* works. You need both.
 
 ---
 

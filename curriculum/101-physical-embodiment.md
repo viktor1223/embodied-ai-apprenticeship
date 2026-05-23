@@ -101,6 +101,14 @@ By the end of this course, physical systems stop feeling magical.
 - Signal timing requirements
 - Control interfaces and signal standards
 
+**Reference links:**
+- [Servo Motor Basics with Arduino (Knob + Sweep)](https://docs.arduino.cc/learn/electronics/servo-motors/)
+- [Servo Library reference](https://docs.arduino.cc/libraries/servo/)
+- [Knob example (pot → servo)](https://www.arduino.cc/en/Tutorial/Knob)
+- [Sweep example (auto 0–180°)](https://www.arduino.cc/en/Tutorial/LibraryExamples/Sweep)
+
+**Project:** `projects/101/lab2-servo-control/`
+
 ---
 
 ### Lab 3: Motor Driver + DC Motor

@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "author": "Anonymous maker",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-arduino-uno",
+      "id": "uno",
+      "top": 0.6,
+      "left": -0.6,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot1",
+      "top": -164.5,
+      "left": 19,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo1",
+      "top": -136.4,
+      "left": 316.8,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [
+      "uno:GND.1",
+      "pot1:GND",
+      "black",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "uno:GND.2",
+      "servo1:GND",
+      "black",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "uno:7",
+      "servo1:PWM",
+      "green",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "uno:5V",
+      "servo1:V+",
+      "red",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "pot1:SIG",
+      "uno:A0",
+      "green",
+      [
+        "v0"
+      ]
+    ],
+    [
+      "pot1:VCC",
+      "uno:5V",
+      "red",
+      [
+        "v297.6",
+        "h95.2"
+      ]
+    ]
+  ],
+  "dependencies": {}
+}

@@ -85,6 +85,25 @@ Custom instruction files in `.github/instructions/` shape AI behavior in this re
 
 ---
 
+## Wokwi Simulation: What It Is and What It Isn't
+
+We use [Wokwi for VS Code](https://marketplace.visualstudio.com/items?itemName=Wokwi.wokwi-vscode) to simulate circuits before building them physically. But know its limits:
+
+**Wokwi is good for:**
+- Validating wiring logic (correct pins, correct signal paths)
+- Debugging mental models with AI (paste your diagram, get feedback)
+- Verifying code logic via Serial Monitor output
+- Fast iteration without burning components
+
+**Wokwi is NOT good for:**
+- Visual confirmation that things work (LED brightness, servo movement often don't render faithfully)
+- Power behavior (no capacitor simulation, no brownout, no current limits)
+- Replacing real hardware testing
+
+**The rule:** Wokwi proves your *logic* is right. Physical hardware proves your *system* works. You need both. If the serial output shows correct values but the component doesn't animate — that's a sim limitation, not a bug in your circuit. Build it for real to see it move.
+
+---
+
 ## Repository Structure
 
 ```text
