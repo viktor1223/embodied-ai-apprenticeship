@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Circuit Diagram Editor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; }
+
+/* ─── Header / Toolbar ─── */
+header { padding: 8px 16px; background: #16213e; border-bottom: 1px solid #0f3460; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+header h1 { font-size: 14px; font-weight: 600; color: #7ec8e3; }
+.toolbar-btn { background: #0f3460; border: 1px solid #1a4a7a; color: #7ec8e3; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; transition: background 0.15s; }
+.toolbar-btn:hover { background: #1a4a7a; }
+.toolbar-btn.danger { border-color: #c62828; color: #ef9a9a; }
+.toolbar-btn.danger:hover { background: #c62828; color: #fff; }
+.toolbar-btn.primary { background: #1b5e20; border-color: #2e7d32; color: #a5d6a7; }
+.toolbar-btn.primary:hover { background: #2e7d32; color: #fff; }
+.toolbar-sep { width: 1px; height: 20px; background: #0f3460; }
+.badge { background: #0f3460; padding: 3px 10px; border-radius: 12px; font-size: 11px; color: #7ec8e3; margin-left: auto; }
+
+/* ─── Main Layout ─── */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* ─── Left Panel: Component Palette ─── */
+.palette { width: 200px; min-width: 180px; background: #16213e; border-right: 1px solid #0f3460; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.palette h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #7ec8e3; padding: 12px 12px 8px; }
+.palette-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
+.palette-item { padding: 8px 10px; margin: 3px 0; background: #1a1a2e; border: 1px solid #0f3460; border-radius: 6px; font-size: 11px; font-family: monospace; cursor: grab; transition: background 0.15s, border-color 0.15s; display: flex; align-items: center; gap: 8px; }
+.palette-item:hover { background: #0f3460; border-color: #7ec8e3; }
+.palette-item:active { cursor: grabbing; }
+.palette-icon { width: 24px; height: 24px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.palette-item .label { color: #ccc; }
+.palette-item .sub { font-size: 9px; color: #666; display: block; margin-top: 2px; }
+
+/* ─── Canvas ─── */
+.canvas-container { flex: 1; position: relative; overflow: hidden; background: #12122a; }
+#canvas-svg { width: 100%; height: 100%; cursor: default; }
+#canvas-svg.panning { cursor: grab; }
+#canvas-svg.panning:active { cursor: grabbing; }
+
+/* Grid */
+.grid-pattern { stroke: #1e1e3e; stroke-width: 0.5; }
+
+/* Components on canvas */
+.component-group { cursor: move; }
+.component-group:hover rect:first-child, .component-group:hover circle:first-child { filter: drop-shadow(0 0 4px rgba(126, 200, 227, 0.4)); }
+.component-group.selected rect:first-child, .component-group.selected circle:first-child { stroke: #7ec8e3 !important; stroke-width: 2.5 !important; }
+
+/* Pins */
+.pin-circle { fill: #fdd835; r: 4; cursor: crosshair; transition: r 0.1s, fill 0.1s; }
+.pin-circle:hover { r: 6; fill: #fff; }
+.pin-circle.connected { fill: #66bb6a; }
+
+/* Wires */
+.wire { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; cursor: pointer; }
+.wire:hover { stroke-width: 4; filter: drop-shadow(0 0 3px currentColor); }
+.wire.selected { stroke-width: 4; filter: drop-shadow(0 0 5px #7ec8e3); }
+.wire-preview { stroke-width: 2; fill: none; stroke-linecap: round; stroke-dasharray: 6 4; opacity: 0.7; pointer-events: none; }
+
+/* ─── Right Panel: Properties ─── */
+.properties { width: 280px; min-width: 240px; background: #16213e; border-left: 1px solid #0f3460; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.properties h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #7ec8e3; padding: 12px 12px 8px; }
+.prop-content { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
+.prop-group { background: #1a1a2e; border: 1px solid #0f3460; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+.prop-group h4 { font-size: 10px; color: #7ec8e3; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.prop-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+.prop-row label { font-size: 11px; font-family: monospace; color: #aaa; min-width: 50px; }
+.prop-row input[type=text], .prop-row input[type=number] { flex: 1; background: #111; border: 1px solid #333; color: #fff; padding: 4px 8px; border-radius: 3px; font-size: 11px; font-family: monospace; }
+.prop-row input:focus { border-color: #7ec8e3; outline: none; }
+.prop-row select { flex: 1; background: #111; border: 1px solid #333; color: #fff; padding: 4px 8px; border-radius: 3px; font-size: 11px; }
+.empty-state { color: #555; font-size: 12px; text-align: center; padding: 20px; }
+
+/* ─── Status Bar ─── */
+.status-bar { padding: 4px 16px; background: #0f1a2e; border-top: 1px solid #0f3460; font-size: 10px; color: #666; display: flex; gap: 16px; flex-shrink: 0; }
+.status-bar span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ─── Context Menu ─── */
+.context-menu { position: fixed; background: #1e2a4a; border: 1px solid #0f3460; border-radius: 6px; padding: 4px 0; min-width: 150px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: none; }
+.context-menu-item { padding: 6px 14px; font-size: 11px; cursor: pointer; color: #ccc; }
+.context-menu-item:hover { background: #0f3460; color: #fff; }
+.context-menu-item.danger { color: #ef9a9a; }
+.context-menu-item.danger:hover { background: #c62828; color: #fff; }
+.context-menu-sep { height: 1px; background: #0f3460; margin: 3px 0; }
+
+/* ─── Wire Color Picker ─── */
+.color-picker { display: flex; gap: 4px; flex-wrap: wrap; padding: 4px 0; }
+.color-swatch { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s, transform 0.1s; }
+.color-swatch:hover { transform: scale(1.2); }
+.color-swatch.active { border-color: #fff; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Circuit Editor</h1>
+  <button class="toolbar-btn" id="btnNew" title="New diagram">New</button>
+  <button class="toolbar-btn" id="btnLoad" title="Load diagram.json">📂 Load</button>
+  <button class="toolbar-btn primary" id="btnSave" title="Save diagram.json">💾 Save</button>
+  <div class="toolbar-sep"></div>
+  <button class="toolbar-btn" id="btnUndo" title="Undo (Ctrl+Z)">↩ Undo</button>
+  <button class="toolbar-btn" id="btnRedo" title="Redo (Ctrl+Y)">↪ Redo</button>
+  <div class="toolbar-sep"></div>
+  <button class="toolbar-btn danger" id="btnDelete" title="Delete selected (Del)">🗑 Delete</button>
+  <div class="toolbar-sep"></div>
+  <button class="toolbar-btn" id="btnZoomIn" title="Zoom in">+</button>
+  <button class="toolbar-btn" id="btnZoomOut" title="Zoom out">−</button>
+  <button class="toolbar-btn" id="btnFit" title="Fit to view">⊡ Fit</button>
+  <span class="badge" id="badge">Untitled</span>
+  <input type="file" id="fileInput" accept=".json" hidden>
+</header>
+
+<div class="main">
+  <!-- Left: Component Palette -->
+  <div class="palette">
+    <h2>Components</h2>
+    <div class="palette-list" id="paletteList"></div>
+  </div>
+
+  <!-- Center: Canvas -->
+  <div class="canvas-container" id="canvasContainer">
+    <svg id="canvas-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="grid-small" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M 20 0 L 0 0 0 20" fill="none" class="grid-pattern" stroke-width="0.3"/>
+        </pattern>
+        <pattern id="grid-large" width="100" height="100" patternUnits="userSpaceOnUse">
+          <rect width="100" height="100" fill="url(#grid-small)"/>
+          <path d="M 100 0 L 0 0 0 100" fill="none" class="grid-pattern" stroke-width="0.8"/>
+        </pattern>
+      </defs>
+      <rect id="grid-bg" width="10000" height="10000" x="-5000" y="-5000" fill="url(#grid-large)"/>
+      <g id="wiresLayer"></g>
+      <g id="componentsLayer"></g>
+      <g id="overlayLayer"></g>
+    </svg>
+  </div>
+
+  <!-- Right: Properties -->
+  <div class="properties">
+    <h2>Properties</h2>
+    <div class="prop-content" id="propContent">
+      <div class="empty-state">Select a component or wire to see its properties.</div>
+    </div>
+  </div>
+</div>
+
+<div class="status-bar">
+  <span id="statusCoords">0, 0</span>
+  <span id="statusParts">0 parts</span>
+  <span id="statusWires">0 wires</span>
+  <span id="statusMode">Ready</span>
+</div>
+
+<!-- Context Menu -->
+<div class="context-menu" id="contextMenu">
+  <div class="context-menu-item" data-action="duplicate">Duplicate</div>
+  <div class="context-menu-item" data-action="bring-front">Bring to Front</div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item danger" data-action="delete">Delete</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// COMPONENT REGISTRY
+// ═══════════════════════════════════════════════════════
+
+const COMPONENTS = {
+
+  'wokwi-arduino-uno': {
+    label: 'Arduino Uno', category: 'Boards', icon: '🔵',
+    width: 180, height: 220,
+    pins: {
+      '13': {x:180,y:30}, '12': {x:180,y:42}, '11': {x:180,y:54}, '10': {x:180,y:66},
+      '9': {x:180,y:78}, '8': {x:180,y:90},
+      '7': {x:180,y:108}, '6': {x:180,y:120}, '5': {x:180,y:132}, '4': {x:180,y:144},
+      '3': {x:180,y:156}, '2': {x:180,y:168}, '1': {x:180,y:180}, '0': {x:180,y:192},
+      'RESET': {x:0,y:30}, '3.3V': {x:0,y:48}, '5V': {x:0,y:64},
+      'GND.1': {x:0,y:80}, 'GND.2': {x:0,y:96}, 'VIN': {x:0,y:112},
+      'A0': {x:0,y:136}, 'A1': {x:0,y:150}, 'A2': {x:0,y:164},
+      'A3': {x:0,y:178}, 'A4': {x:0,y:192}, 'A5': {x:0,y:206},
+    },
+    attrs: {},
+    render(g, part) {
+      g.innerHTML = `
+        <rect width="180" height="220" rx="6" fill="#1565c0" stroke="#0d47a1" stroke-width="2"/>
+        <rect x="10" y="10" width="160" height="50" rx="3" fill="#0d47a1"/>
+        <text x="90" y="35" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">ARDUINO UNO</text>
+        <text x="90" y="50" text-anchor="middle" font-size="8" fill="#90caf9">ATmega328P</text>
+        <text x="173" y="20" text-anchor="end" font-size="7" fill="#64b5f6">DIGITAL</text>
+        <text x="7" y="125" font-size="7" fill="#64b5f6">ANALOG</text>
+      `;
+    }
+  },
+
+  'wokwi-led': {
+    label: 'LED', category: 'Output', icon: '💡',
+    width: 40, height: 60,
+    pins: { 'A': {x:14,y:0}, 'C': {x:26,y:0} },
+    attrs: { color: 'red' },
+    render(g, part) {
+      const color = (part.attrs && part.attrs.color) || 'red';
+      const colorMap = { red:'#f44336', green:'#4caf50', blue:'#2196f3', yellow:'#ffeb3b', white:'#fff', orange:'#ff9800' };
+      const fill = colorMap[color] || color;
+      g.innerHTML = `
+        <ellipse cx="20" cy="35" rx="14" ry="18" fill="${fill}" opacity="0.85" stroke="${fill}" stroke-width="1"/>
+        <rect x="12" y="8" width="4" height="20" fill="#aaa" rx="1"/>
+        <rect x="22" y="5" width="4" height="23" fill="#aaa" rx="1"/>
+        <text x="20" y="58" text-anchor="middle" font-size="8" fill="#aaa">LED</text>
+      `;
+    }
+  },
+
+  'wokwi-resistor': {
+    label: 'Resistor', category: 'Passive', icon: '⚡',
+    width: 70, height: 20,
+    pins: { '1': {x:0,y:10}, '2': {x:70,y:10} },
+    attrs: { resistance: '1000' },
+    render(g, part) {
+      const r = (part.attrs && part.attrs.resistance) || '1k';
+      g.innerHTML = `
+        <line x1="0" y1="10" x2="15" y2="10" stroke="#aaa" stroke-width="2"/>
+        <rect x="15" y="3" width="40" height="14" rx="2" fill="#b39ddb" stroke="#7e57c2" stroke-width="1"/>
+        <line x1="55" y1="10" x2="70" y2="10" stroke="#aaa" stroke-width="2"/>
+        <text x="35" y="13" text-anchor="middle" font-size="7" fill="#fff">${r}Ω</text>
+      `;
+    }
+  },
+
+  'wokwi-potentiometer': {
+    label: 'Potentiometer', category: 'Input', icon: '🎛',
+    width: 60, height: 60,
+    pins: { 'GND': {x:10,y:0}, 'SIG': {x:30,y:0}, 'VCC': {x:50,y:0} },
+    attrs: {},
+    render(g, part) {
+      g.innerHTML = `
+        <rect x="5" y="15" width="50" height="40" rx="4" fill="#1b5e20" stroke="#2e7d32" stroke-width="1.5"/>
+        <circle cx="30" cy="35" r="12" fill="#424242" stroke="#666" stroke-width="1.5"/>
+        <line x1="30" y1="35" x2="30" y2="24" stroke="#fdd835" stroke-width="2" stroke-linecap="round"/>
+        <text x="30" y="56" text-anchor="middle" font-size="7" fill="#aaa">POT</text>
+      `;
+    }
+  },
+
+  'wokwi-servo': {
+    label: 'Servo Motor', category: 'Output', icon: '⚙️',
+    width: 80, height: 50,
+    pins: { 'GND': {x:20,y:50}, 'V+': {x:40,y:50}, 'PWM': {x:60,y:50} },
+    attrs: {},
+    render(g, part) {
+      g.innerHTML = `
+        <rect x="0" y="0" width="80" height="35" rx="4" fill="#1565c0" stroke="#0d47a1" stroke-width="1.5"/>
+        <circle cx="65" cy="17" r="10" fill="#333" stroke="#555" stroke-width="1.5"/>
+        <line x1="65" y1="17" x2="65" y2="8" stroke="#fdd835" stroke-width="2" stroke-linecap="round"/>
+        <text x="28" y="20" font-size="9" fill="#fff" font-weight="bold">SERVO</text>
+      `;
+    }
+  },
+
+  'chip-l298n': {
+    label: 'L298N Motor Driver', category: 'Drivers', icon: '🔴',
+    width: 140, height: 180,
+    pins: {
+      'ENA': {x:0,y:40}, 'IN1': {x:0,y:60}, 'IN2': {x:0,y:80},
+      'IN3': {x:0,y:110}, 'IN4': {x:0,y:130}, 'ENB': {x:0,y:150},
+      'OUT1': {x:140,y:40}, 'OUT2': {x:140,y:60},
+      'OUT3': {x:140,y:110}, 'OUT4': {x:140,y:130},
+      '5V': {x:50,y:180}, 'GND': {x:70,y:180}, '12V': {x:90,y:180}, 'GND2': {x:110,y:180}
+    },
+    attrs: { Vs: '12' },
+    render(g, part) {
+      const vs = (part.attrs && part.attrs.Vs) || '12';
+      g.innerHTML = `
+        <rect width="140" height="180" rx="6" fill="#b71c1c" stroke="#7f0000" stroke-width="2"/>
+        <rect x="20" y="10" width="100" height="30" rx="3" fill="#424242"/>
+        <text x="70" y="27" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">L298N</text>
+        <text x="70" y="38" text-anchor="middle" font-size="7" fill="#bbb">H-BRIDGE (${vs}V)</text>
+        <rect x="10" y="48" width="120" height="35" rx="2" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)"/>
+        <text x="70" y="58" text-anchor="middle" font-size="7" fill="#ffcdd2">Channel A</text>
+        <rect x="10" y="98" width="120" height="44" rx="2" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)"/>
+        <text x="70" y="108" text-anchor="middle" font-size="7" fill="#ffcdd2">Channel B</text>
+      `;
+    }
+  },
+
+  'chip-dc-motor': {
+    label: 'DC Motor', category: 'Output', icon: '🟠',
+    width: 70, height: 70,
+    pins: { 'TERM1': {x:15,y:70}, 'TERM2': {x:55,y:70} },
+    attrs: { ratedV: '6' },
+    render(g, part) {
+      g.innerHTML = `
+        <circle cx="35" cy="30" r="28" fill="#ff8f00" stroke="#e65100" stroke-width="2"/>
+        <rect x="58" y="22" width="15" height="12" rx="2" fill="#757575"/>
+        <text x="35" y="27" text-anchor="middle" font-size="9" font-weight="bold" fill="#333">DC</text>
+        <text x="35" y="38" text-anchor="middle" font-size="7" fill="#555">MOTOR</text>
+      `;
+    }
+  },
+
+  'wokwi-pushbutton': {
+    label: 'Push Button', category: 'Input', icon: '🔘',
+    width: 40, height: 40,
+    pins: { '1.l': {x:0,y:10}, '2.l': {x:0,y:30}, '1.r': {x:40,y:10}, '2.r': {x:40,y:30} },
+    attrs: {},
+    render(g, part) {
+      g.innerHTML = `
+        <rect width="40" height="40" rx="3" fill="#333" stroke="#555" stroke-width="1"/>
+        <circle cx="20" cy="20" r="10" fill="#666" stroke="#888" stroke-width="1.5"/>
+        <circle cx="20" cy="20" r="7" fill="#444"/>
+      `;
+    }
+  },
+
+  'wokwi-buzzer': {
+    label: 'Buzzer', category: 'Output', icon: '🔊',
+    width: 50, height: 50,
+    pins: { '1': {x:15,y:50}, '2': {x:35,y:50} },
+    attrs: {},
+    render(g, part) {
+      g.innerHTML = `
+        <circle cx="25" cy="25" r="22" fill="#222" stroke="#444" stroke-width="2"/>
+        <circle cx="25" cy="25" r="8" fill="#333" stroke="#555" stroke-width="1"/>
+        <text x="25" y="48" text-anchor="middle" font-size="6" fill="#888">BZR</text>
+      `;
+    }
+  },
+
+  'chip-mpu6050': {
+    label: 'MPU-6050 IMU', category: 'Sensors', icon: '📐',
+    width: 80, height: 50,
+    pins: { 'VCC': {x:0,y:10}, 'GND': {x:0,y:20}, 'SCL': {x:0,y:30}, 'SDA': {x:0,y:40}, 'INT': {x:80,y:25} },
+    attrs: {},
+    render(g, part) {
+      g.innerHTML = `
+        <rect width="80" height="50" rx="4" fill="#1a237e" stroke="#283593" stroke-width="1.5"/>
+        <text x="40" y="20" text-anchor="middle" font-size="9" font-weight="bold" fill="#fff">MPU-6050</text>
+        <text x="40" y="32" text-anchor="middle" font-size="7" fill="#9fa8da">6-DOF IMU</text>
+        <text x="40" y="44" text-anchor="middle" font-size="6" fill="#666">I2C 0x68</text>
+      `;
+    }
+  },
+
+  'chip-hcsr04': {
+    label: 'HC-SR04 Ultrasonic', category: 'Sensors', icon: '📡',
+    width: 90, height: 45,
+    pins: { 'VCC': {x:15,y:45}, 'TRIG': {x:35,y:45}, 'ECHO': {x:55,y:45}, 'GND': {x:75,y:45} },
+    attrs: {},
+    render(g, part) {
+      g.innerHTML = `
+        <rect width="90" height="35" rx="3" fill="#006064" stroke="#00838f" stroke-width="1.5"/>
+        <circle cx="25" cy="17" r="10" fill="#333" stroke="#555" stroke-width="1"/>
+        <circle cx="65" cy="17" r="10" fill="#333" stroke="#555" stroke-width="1"/>
+        <text x="45" y="38" text-anchor="middle" font-size="6" fill="#80cbc4">HC-SR04</text>
+      `;
+    }
+  },
+
+  'chip-l293d': {
+    label: 'L293D Motor Driver', category: 'Drivers', icon: '🟣',
+    width: 60, height: 80,
+    pins: {
+      'EN1': {x:0,y:10}, 'IN1': {x:0,y:25}, 'OUT1': {x:0,y:40}, 'GND1': {x:0,y:55},
+      'EN2': {x:60,y:10}, 'IN2': {x:60,y:25}, 'OUT2': {x:60,y:40}, 'VS': {x:60,y:55},
+      'VCC': {x:30,y:0}, 'GND': {x:30,y:80}
+    },
+    attrs: {},
+    render(g, part) {
+      g.innerHTML = `
+        <rect width="60" height="80" rx="3" fill="#4a148c" stroke="#6a1b9a" stroke-width="1.5"/>
+        <text x="30" y="35" text-anchor="middle" font-size="9" font-weight="bold" fill="#fff">L293D</text>
+        <text x="30" y="50" text-anchor="middle" font-size="7" fill="#ce93d8">H-Bridge</text>
+      `;
+    }
+  },
+
+  'chip-battery': {
+    label: 'Battery Pack', category: 'Power', icon: '🔋',
+    width: 60, height: 40,
+    pins: { '+': {x:60,y:12}, '-': {x:60,y:28} },
+    attrs: { voltage: '6' },
+    render(g, part) {
+      const v = (part.attrs && part.attrs.voltage) || '6';
+      g.innerHTML = `
+        <rect width="50" height="40" rx="3" fill="#333" stroke="#555" stroke-width="1.5"/>
+        <rect x="50" y="8" width="6" height="8" fill="#f44336" rx="1"/>
+        <rect x="50" y="24" width="6" height="8" fill="#333" rx="1"/>
+        <text x="25" y="18" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">${v}V</text>
+        <text x="25" y="32" text-anchor="middle" font-size="6" fill="#888">BATTERY</text>
+      `;
+    }
+  }
+};
+
+// Wire color options
+const WIRE_COLORS = ['red', 'black', 'green', 'blue', 'purple', 'orange', 'cyan', 'brown', 'darkgreen', 'yellow', 'white', 'gray'];
+
+// ═══════════════════════════════════════════════════════
+// EDITOR STATE
+// ═══════════════════════════════════════════════════════
+
+const state = {
+  parts: [],          // Array of { type, id, top, left, attrs }
+  connections: [],    // Array of [from, to, color, hints]
+  selectedId: null,   // Selected component id or wire index
+  selectedType: null, // 'component' | 'wire' | null
+  wireColor: 'green',
+  drawingWire: null,  // { from: "partId:pin", startPos: {x,y} } | null
+  pan: { x: 0, y: 0 },
+  zoom: 1,
+  isDragging: false,
+  dragTarget: null,
+  dragOffset: { x: 0, y: 0 },
+  isPanning: false,
+  panStart: { x: 0, y: 0 },
+  undoStack: [],
+  redoStack: [],
+  nextId: 1,
+  filename: null
+};
+
+// ═══════════════════════════════════════════════════════
+// INITIALIZATION
+// ═══════════════════════════════════════════════════════
+
+function init() {
+  buildPalette();
+  setupCanvasEvents();
+  setupToolbarEvents();
+  setupKeyboardShortcuts();
+  updateStatus();
+  fitView();
+}
+
+// ═══════════════════════════════════════════════════════
+// PALETTE
+// ═══════════════════════════════════════════════════════
+
+function buildPalette() {
+  const list = document.getElementById('paletteList');
+  const categories = {};
+
+  Object.entries(COMPONENTS).forEach(([type, def]) => {
+    if (!categories[def.category]) categories[def.category] = [];
+    categories[def.category].push({ type, def });
+  });
+
+  let html = '';
+  Object.entries(categories).forEach(([cat, items]) => {
+    html += `<div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:1px;margin:10px 4px 4px;${cat === Object.keys(categories)[0] ? 'margin-top:4px;' : ''}">${cat}</div>`;
+    items.forEach(({ type, def }) => {
+      html += `<div class="palette-item" draggable="true" data-type="${type}">
+        <div class="palette-icon">${def.icon}</div>
+        <div><span class="label">${def.label}</span><span class="sub">${Object.keys(def.pins).length} pins</span></div>
+      </div>`;
+    });
+  });
+
+  list.innerHTML = html;
+
+  // Drag from palette
+  list.querySelectorAll('.palette-item').forEach(item => {
+    item.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('component-type', item.dataset.type);
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// CANVAS EVENTS
+// ═══════════════════════════════════════════════════════
+
+function setupCanvasEvents() {
+  const container = document.getElementById('canvasContainer');
+  const svg = document.getElementById('canvas-svg');
+
+  // Drop from palette
+  container.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+  container.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData('component-type');
+    if (!type || !COMPONENTS[type]) return;
+
+    const pos = screenToWorld(e.clientX, e.clientY);
+    const def = COMPONENTS[type];
+    // Snap to grid
+    const x = Math.round((pos.x - def.width / 2) / 20) * 20;
+    const y = Math.round((pos.y - def.height / 2) / 20) * 20;
+
+    addComponent(type, x, y);
+  });
+
+  // Mouse events on SVG
+  svg.addEventListener('mousedown', onCanvasMouseDown);
+  svg.addEventListener('mousemove', onCanvasMouseMove);
+  svg.addEventListener('mouseup', onCanvasMouseUp);
+  svg.addEventListener('wheel', onCanvasWheel, { passive: false });
+  svg.addEventListener('contextmenu', onContextMenu);
+
+  // Click outside to deselect
+  svg.addEventListener('click', (e) => {
+    if (e.target === svg || e.target.id === 'grid-bg') {
+      deselect();
+      hideContextMenu();
+    }
+  });
+
+  // Hide context menu on click elsewhere
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.context-menu')) hideContextMenu();
+  });
+}
+
+function screenToWorld(clientX, clientY) {
+  const container = document.getElementById('canvasContainer');
+  const rect = container.getBoundingClientRect();
+  const svgX = (clientX - rect.left - rect.width / 2) / state.zoom - state.pan.x;
+  const svgY = (clientY - rect.top - rect.height / 2) / state.zoom - state.pan.y;
+  return { x: svgX, y: svgY };
+}
+
+function onCanvasMouseDown(e) {
+  if (e.button === 1 || (e.button === 0 && e.altKey)) {
+    // Middle-click or Alt+click: pan
+    state.isPanning = true;
+    state.panStart = { x: e.clientX, y: e.clientY };
+    document.getElementById('canvas-svg').classList.add('panning');
+    e.preventDefault();
+    return;
+  }
+
+  if (e.button !== 0) return;
+
+  // Check if clicking a pin
+  const pinEl = e.target.closest('.pin-circle');
+  if (pinEl) {
+    const partId = pinEl.dataset.partId;
+    const pinName = pinEl.dataset.pin;
+    const pos = getPinWorldPosition(partId, pinName);
+    if (pos) {
+      if (state.drawingWire) {
+        // Finish wire
+        finishWire(partId, pinName);
+      } else {
+        // Start wire
+        state.drawingWire = { from: `${partId}:${pinName}`, startPos: pos };
+        setStatus('Drawing wire... click another pin to connect');
+      }
+    }
+    e.stopPropagation();
+    return;
+  }
+
+  // Check if clicking a component
+  const compGroup = e.target.closest('.component-group');
+  if (compGroup && !state.drawingWire) {
+    const id = compGroup.dataset.id;
+    selectComponent(id);
+
+    // Start drag
+    const part = state.parts.find(p => p.id === id);
+    if (part) {
+      const pos = screenToWorld(e.clientX, e.clientY);
+      state.isDragging = true;
+      state.dragTarget = id;
+      state.dragOffset = { x: pos.x - part.left, y: pos.y - part.top };
+    }
+    e.stopPropagation();
+    return;
+  }
+
+  // Check if clicking a wire
+  const wireEl = e.target.closest('.wire');
+  if (wireEl) {
+    const idx = parseInt(wireEl.dataset.index);
+    selectWire(idx);
+    e.stopPropagation();
+    return;
+  }
+
+  // Clicking empty space: cancel wire drawing
+  if (state.drawingWire) {
+    state.drawingWire = null;
+    removeWirePreview();
+    setStatus('Ready');
+  }
+}
+
+function onCanvasMouseMove(e) {
+  const pos = screenToWorld(e.clientX, e.clientY);
+  document.getElementById('statusCoords').textContent = `${Math.round(pos.x)}, ${Math.round(pos.y)}`;
+
+  // Panning
+  if (state.isPanning) {
+    const dx = (e.clientX - state.panStart.x) / state.zoom;
+    const dy = (e.clientY - state.panStart.y) / state.zoom;
+    state.pan.x += dx;
+    state.pan.y += dy;
+    state.panStart = { x: e.clientX, y: e.clientY };
+    updateViewTransform();
+    return;
+  }
+
+  // Dragging component
+  if (state.isDragging && state.dragTarget) {
+    const part = state.parts.find(p => p.id === state.dragTarget);
+    if (part) {
+      const newX = Math.round((pos.x - state.dragOffset.x) / 20) * 20;
+      const newY = Math.round((pos.y - state.dragOffset.y) / 20) * 20;
+      part.left = newX;
+      part.top = newY;
+      renderAll();
+    }
+    return;
+  }
+
+  // Wire preview
+  if (state.drawingWire) {
+    drawWirePreview(state.drawingWire.startPos, pos);
+  }
+}
+
+function onCanvasMouseUp(e) {
+  if (state.isPanning) {
+    state.isPanning = false;
+    document.getElementById('canvas-svg').classList.remove('panning');
+  }
+
+  if (state.isDragging) {
+    state.isDragging = false;
+    pushUndo();
+    state.dragTarget = null;
+  }
+}
+
+function onCanvasWheel(e) {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  const newZoom = Math.max(0.2, Math.min(5, state.zoom * delta));
+
+  // Zoom toward cursor
+  const pos = screenToWorld(e.clientX, e.clientY);
+  state.zoom = newZoom;
+  updateViewTransform();
+}
+
+function onContextMenu(e) {
+  e.preventDefault();
+  const compGroup = e.target.closest('.component-group');
+  if (compGroup) {
+    selectComponent(compGroup.dataset.id);
+    showContextMenu(e.clientX, e.clientY);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// VIEW TRANSFORM
+// ═══════════════════════════════════════════════════════
+
+function updateViewTransform() {
+  const svg = document.getElementById('canvas-svg');
+  const container = document.getElementById('canvasContainer');
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+
+  const viewW = w / state.zoom;
+  const viewH = h / state.zoom;
+  const viewX = -state.pan.x - viewW / 2;
+  const viewY = -state.pan.y - viewH / 2;
+
+  svg.setAttribute('viewBox', `${viewX} ${viewY} ${viewW} ${viewH}`);
+}
+
+function fitView() {
+  if (state.parts.length === 0) {
+    state.pan = { x: 0, y: 0 };
+    state.zoom = 1;
+    updateViewTransform();
+    return;
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  state.parts.forEach(part => {
+    const def = COMPONENTS[part.type];
+    if (!def) return;
+    minX = Math.min(minX, part.left);
+    minY = Math.min(minY, part.top);
+    maxX = Math.max(maxX, part.left + def.width);
+    maxY = Math.max(maxY, part.top + def.height);
+  });
+
+  const container = document.getElementById('canvasContainer');
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  const pad = 80;
+
+  const contentW = (maxX - minX) + pad * 2;
+  const contentH = (maxY - minY) + pad * 2;
+
+  state.zoom = Math.min(cw / contentW, ch / contentH, 2);
+  state.pan.x = -(minX + maxX) / 2;
+  state.pan.y = -(minY + maxY) / 2;
+
+  updateViewTransform();
+}
+
+// ═══════════════════════════════════════════════════════
+// COMPONENT MANAGEMENT
+// ═══════════════════════════════════════════════════════
+
+function addComponent(type, x, y, attrs, id) {
+  const def = COMPONENTS[type];
+  if (!def) return null;
+
+  const partId = id || generateId(type);
+  const part = {
+    type,
+    id: partId,
+    top: y,
+    left: x,
+    attrs: attrs || { ...def.attrs }
+  };
+
+  state.parts.push(part);
+  pushUndo();
+  renderAll();
+  selectComponent(partId);
+  updateStatus();
+  return part;
+}
+
+function generateId(type) {
+  const baseName = type.replace('wokwi-', '').replace('chip-', '');
+  // Find existing count
+  const existing = state.parts.filter(p => p.type === type).length;
+  if (existing === 0) return baseName;
+  return `${baseName}${existing + 1}`;
+}
+
+function deleteSelected() {
+  if (!state.selectedId) return;
+
+  if (state.selectedType === 'component') {
+    const id = state.selectedId;
+    // Remove component
+    state.parts = state.parts.filter(p => p.id !== id);
+    // Remove all wires connected to it
+    state.connections = state.connections.filter(conn => {
+      return !conn[0].startsWith(id + ':') && !conn[1].startsWith(id + ':');
+    });
+  } else if (state.selectedType === 'wire') {
+    state.connections.splice(state.selectedId, 1);
+  }
+
+  deselect();
+  pushUndo();
+  renderAll();
+  updateStatus();
+}
+
+function duplicateSelected() {
+  if (state.selectedType !== 'component') return;
+  const part = state.parts.find(p => p.id === state.selectedId);
+  if (!part) return;
+
+  addComponent(part.type, part.left + 40, part.top + 40, { ...part.attrs });
+}
+
+// ═══════════════════════════════════════════════════════
+// WIRE MANAGEMENT
+// ═══════════════════════════════════════════════════════
+
+function finishWire(toPartId, toPin) {
+  if (!state.drawingWire) return;
+
+  const from = state.drawingWire.from;
+  const to = `${toPartId}:${toPin}`;
+
+  // Don't connect to self
+  if (from === to) {
+    state.drawingWire = null;
+    removeWirePreview();
+    setStatus('Ready');
+    return;
+  }
+
+  // Don't duplicate
+  const exists = state.connections.some(c =>
+    (c[0] === from && c[1] === to) || (c[0] === to && c[1] === from)
+  );
+  if (exists) {
+    state.drawingWire = null;
+    removeWirePreview();
+    setStatus('Wire already exists');
+    setTimeout(() => setStatus('Ready'), 1500);
+    return;
+  }
+
+  state.connections.push([from, to, state.wireColor, []]);
+  state.drawingWire = null;
+  removeWirePreview();
+  pushUndo();
+  renderAll();
+  setStatus('Wire connected');
+  setTimeout(() => setStatus('Ready'), 1000);
+  updateStatus();
+}
+
+function drawWirePreview(from, to) {
+  const overlay = document.getElementById('overlayLayer');
+  let preview = overlay.querySelector('.wire-preview');
+  if (!preview) {
+    preview = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    preview.setAttribute('class', 'wire-preview');
+    preview.setAttribute('stroke', state.wireColor);
+    overlay.appendChild(preview);
+  }
+  preview.setAttribute('stroke', state.wireColor);
+  preview.setAttribute('d', `M ${from.x} ${from.y} L ${to.x} ${to.y}`);
+}
+
+function removeWirePreview() {
+  const overlay = document.getElementById('overlayLayer');
+  const preview = overlay.querySelector('.wire-preview');
+  if (preview) preview.remove();
+}
+
+// ═══════════════════════════════════════════════════════
+// SELECTION
+// ═══════════════════════════════════════════════════════
+
+function selectComponent(id) {
+  deselect();
+  state.selectedId = id;
+  state.selectedType = 'component';
+
+  const group = document.querySelector(`[data-id="${id}"]`);
+  if (group) group.classList.add('selected');
+
+  renderProperties();
+}
+
+function selectWire(index) {
+  deselect();
+  state.selectedId = index;
+  state.selectedType = 'wire';
+
+  const wire = document.querySelector(`[data-index="${index}"]`);
+  if (wire) wire.classList.add('selected');
+
+  renderProperties();
+}
+
+function deselect() {
+  document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+  state.selectedId = null;
+  state.selectedType = null;
+  renderProperties();
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════
+
+function renderAll() {
+  renderComponents();
+  renderWires();
+  updateViewTransform();
+}
+
+function renderComponents() {
+  const layer = document.getElementById('componentsLayer');
+  layer.innerHTML = '';
+
+  state.parts.forEach(part => {
+    const def = COMPONENTS[part.type];
+    if (!def) return;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'component-group');
+    g.setAttribute('data-id', part.id);
+    g.setAttribute('transform', `translate(${part.left}, ${part.top})`);
+
+    // Render component body
+    def.render(g, part);
+
+    // Render pins
+    Object.entries(def.pins).forEach(([pinName, pos]) => {
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', pos.x);
+      circle.setAttribute('cy', pos.y);
+      circle.setAttribute('class', 'pin-circle');
+      circle.dataset.partId = part.id;
+      circle.dataset.pin = pinName;
+
+      // Check if connected
+      const pinRef = `${part.id}:${pinName}`;
+      const isConnected = state.connections.some(c => c[0] === pinRef || c[1] === pinRef);
+      if (isConnected) circle.classList.add('connected');
+
+      // Tooltip
+      const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      title.textContent = `${part.id}:${pinName}`;
+      circle.appendChild(title);
+
+      g.appendChild(circle);
+    });
+
+    // Restore selection
+    if (state.selectedType === 'component' && state.selectedId === part.id) {
+      g.classList.add('selected');
+    }
+
+    layer.appendChild(g);
+  });
+}
+
+function renderWires() {
+  const layer = document.getElementById('wiresLayer');
+  layer.innerHTML = '';
+
+  state.connections.forEach((conn, idx) => {
+    const [fromRef, toRef, color] = conn;
+    const fromPos = getPinWorldPositionFromRef(fromRef);
+    const toPos = getPinWorldPositionFromRef(toRef);
+    if (!fromPos || !toPos) return;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', routeWire(fromPos, toPos));
+    path.setAttribute('stroke', color || 'green');
+    path.setAttribute('class', 'wire');
+    path.dataset.index = idx;
+
+    if (state.selectedType === 'wire' && state.selectedId === idx) {
+      path.classList.add('selected');
+    }
+
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = `${fromRef} → ${toRef}`;
+    path.appendChild(title);
+
+    layer.appendChild(path);
+  });
+}
+
+function routeWire(from, to) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+
+  if (Math.abs(dx) < 5 || Math.abs(dy) < 5) {
+    return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+  }
+
+  // Orthogonal routing: go out from pin, then route
+  const midX = from.x + dx * 0.5;
+  return `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`;
+}
+
+function getPinWorldPosition(partId, pinName) {
+  const part = state.parts.find(p => p.id === partId);
+  if (!part) return null;
+  const def = COMPONENTS[part.type];
+  if (!def || !def.pins[pinName]) return null;
+  const pin = def.pins[pinName];
+  return { x: part.left + pin.x, y: part.top + pin.y };
+}
+
+function getPinWorldPositionFromRef(ref) {
+  const colonIdx = ref.indexOf(':');
+  if (colonIdx === -1) return null;
+  const partId = ref.substring(0, colonIdx);
+  const pinName = ref.substring(colonIdx + 1);
+  return getPinWorldPosition(partId, pinName);
+}
+
+// ═══════════════════════════════════════════════════════
+// PROPERTIES PANEL
+// ═══════════════════════════════════════════════════════
+
+function renderProperties() {
+  const content = document.getElementById('propContent');
+
+  if (!state.selectedId && state.selectedType === null) {
+    content.innerHTML = '<div class="empty-state">Select a component or wire to see its properties.</div>';
+    return;
+  }
+
+  if (state.selectedType === 'component') {
+    const part = state.parts.find(p => p.id === state.selectedId);
+    if (!part) return;
+    const def = COMPONENTS[part.type];
+
+    let html = `
+      <div class="prop-group">
+        <h4>Component</h4>
+        <div class="prop-row"><label>Type</label><input type="text" value="${part.type}" disabled></div>
+        <div class="prop-row"><label>ID</label><input type="text" value="${part.id}" data-field="id"></div>
+        <div class="prop-row"><label>Left</label><input type="number" value="${part.left}" data-field="left" step="20"></div>
+        <div class="prop-row"><label>Top</label><input type="number" value="${part.top}" data-field="top" step="20"></div>
+      </div>
+    `;
+
+    // Attributes
+    if (part.attrs && Object.keys(part.attrs).length > 0) {
+      html += '<div class="prop-group"><h4>Attributes</h4>';
+      Object.entries(part.attrs).forEach(([key, val]) => {
+        if (key === 'color') {
+          html += `<div class="prop-row"><label>${key}</label><select data-attr="${key}">
+            ${['red','green','blue','yellow','white','orange'].map(c => `<option value="${c}" ${val===c?'selected':''}>${c}</option>`).join('')}
+          </select></div>`;
+        } else {
+          html += `<div class="prop-row"><label>${key}</label><input type="text" value="${val}" data-attr="${key}"></div>`;
+        }
+      });
+      html += '</div>';
+    }
+
+    // Pins
+    html += `<div class="prop-group"><h4>Pins (${Object.keys(def.pins).length})</h4>`;
+    html += '<div style="font-size:10px;font-family:monospace;color:#888;line-height:1.8;">';
+    Object.keys(def.pins).forEach(pin => {
+      const ref = `${part.id}:${pin}`;
+      const connected = state.connections.filter(c => c[0] === ref || c[1] === ref);
+      const status = connected.length > 0 ? `<span style="color:#66bb6a;">● ${connected.length}</span>` : '<span style="color:#555;">○</span>';
+      html += `<div>${status} ${pin}</div>`;
+    });
+    html += '</div></div>';
+
+    content.innerHTML = html;
+
+    // Event listeners for property changes
+    content.querySelectorAll('[data-field]').forEach(input => {
+      input.addEventListener('change', () => {
+        const field = input.dataset.field;
+        if (field === 'id') {
+          // Rename: update all wire references
+          const oldId = part.id;
+          const newId = input.value.trim();
+          if (!newId || state.parts.some(p => p.id === newId && p !== part)) return;
+          part.id = newId;
+          state.connections.forEach(conn => {
+            if (conn[0].startsWith(oldId + ':')) conn[0] = newId + conn[0].substring(oldId.length);
+            if (conn[1].startsWith(oldId + ':')) conn[1] = newId + conn[1].substring(oldId.length);
+          });
+          state.selectedId = newId;
+        } else {
+          part[field] = parseInt(input.value) || 0;
+        }
+        pushUndo();
+        renderAll();
+      });
+    });
+
+    content.querySelectorAll('[data-attr]').forEach(input => {
+      input.addEventListener('change', () => {
+        part.attrs[input.dataset.attr] = input.value;
+        pushUndo();
+        renderAll();
+      });
+    });
+
+  } else if (state.selectedType === 'wire') {
+    const conn = state.connections[state.selectedId];
+    if (!conn) return;
+
+    let html = `
+      <div class="prop-group">
+        <h4>Wire</h4>
+        <div class="prop-row"><label>From</label><input type="text" value="${conn[0]}" disabled></div>
+        <div class="prop-row"><label>To</label><input type="text" value="${conn[1]}" disabled></div>
+        <div class="prop-row"><label>Color</label></div>
+        <div class="color-picker">
+          ${WIRE_COLORS.map(c => `<div class="color-swatch ${conn[2]===c?'active':''}" style="background:${c};" data-color="${c}"></div>`).join('')}
+        </div>
+      </div>
+    `;
+
+    content.innerHTML = html;
+
+    content.querySelectorAll('.color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        conn[2] = swatch.dataset.color;
+        pushUndo();
+        renderAll();
+        renderProperties();
+      });
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// TOOLBAR
+// ═══════════════════════════════════════════════════════
+
+function setupToolbarEvents() {
+  document.getElementById('btnNew').addEventListener('click', newDiagram);
+  document.getElementById('btnLoad').addEventListener('click', () => document.getElementById('fileInput').click());
+  document.getElementById('btnSave').addEventListener('click', saveDiagram);
+  document.getElementById('btnDelete').addEventListener('click', deleteSelected);
+  document.getElementById('btnUndo').addEventListener('click', undo);
+  document.getElementById('btnRedo').addEventListener('click', redo);
+  document.getElementById('btnZoomIn').addEventListener('click', () => { state.zoom = Math.min(5, state.zoom * 1.2); updateViewTransform(); });
+  document.getElementById('btnZoomOut').addEventListener('click', () => { state.zoom = Math.max(0.2, state.zoom * 0.8); updateViewTransform(); });
+  document.getElementById('btnFit').addEventListener('click', fitView);
+
+  document.getElementById('fileInput').addEventListener('change', (e) => {
+    if (e.target.files[0]) loadDiagramFile(e.target.files[0]);
+    e.target.value = '';
+  });
+
+  // Context menu actions
+  document.querySelectorAll('.context-menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const action = item.dataset.action;
+      if (action === 'delete') deleteSelected();
+      else if (action === 'duplicate') duplicateSelected();
+      else if (action === 'bring-front') bringToFront();
+      hideContextMenu();
+    });
+  });
+}
+
+function setupKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    // Don't capture when typing in inputs
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      deleteSelected();
+    } else if (e.key === 'Escape') {
+      if (state.drawingWire) {
+        state.drawingWire = null;
+        removeWirePreview();
+        setStatus('Ready');
+      } else {
+        deselect();
+      }
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) redo(); else undo();
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'y') {
+      e.preventDefault();
+      redo();
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault();
+      saveDiagram();
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+      e.preventDefault();
+      duplicateSelected();
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// UNDO / REDO
+// ═══════════════════════════════════════════════════════
+
+function pushUndo() {
+  const snapshot = JSON.stringify({ parts: state.parts, connections: state.connections });
+  state.undoStack.push(snapshot);
+  if (state.undoStack.length > 50) state.undoStack.shift();
+  state.redoStack = [];
+}
+
+function undo() {
+  if (state.undoStack.length === 0) return;
+  const current = JSON.stringify({ parts: state.parts, connections: state.connections });
+  state.redoStack.push(current);
+  const prev = JSON.parse(state.undoStack.pop());
+  state.parts = prev.parts;
+  state.connections = prev.connections;
+  deselect();
+  renderAll();
+  updateStatus();
+}
+
+function redo() {
+  if (state.redoStack.length === 0) return;
+  const current = JSON.stringify({ parts: state.parts, connections: state.connections });
+  state.undoStack.push(current);
+  const next = JSON.parse(state.redoStack.pop());
+  state.parts = next.parts;
+  state.connections = next.connections;
+  deselect();
+  renderAll();
+  updateStatus();
+}
+
+// ═══════════════════════════════════════════════════════
+// FILE I/O
+// ═══════════════════════════════════════════════════════
+
+function newDiagram() {
+  state.parts = [];
+  state.connections = [];
+  state.undoStack = [];
+  state.redoStack = [];
+  state.filename = null;
+  deselect();
+  renderAll();
+  updateStatus();
+  document.getElementById('badge').textContent = 'Untitled';
+  fitView();
+}
+
+function loadDiagramFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      loadDiagram(data);
+      state.filename = file.name;
+      document.getElementById('badge').textContent = file.name;
+    } catch (err) {
+      alert('Failed to parse diagram.json: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function loadDiagram(data) {
+  state.parts = (data.parts || []).map(p => ({
+    type: p.type,
+    id: p.id,
+    top: p.top || 0,
+    left: p.left || 0,
+    attrs: p.attrs || {}
+  }));
+
+  state.connections = (data.connections || []).map(c => {
+    if (Array.isArray(c) && c.length >= 3) {
+      return [c[0], c[1], c[2], c[3] || []];
+    }
+    return c;
+  });
+
+  state.undoStack = [];
+  state.redoStack = [];
+  pushUndo();
+  deselect();
+  renderAll();
+  updateStatus();
+  fitView();
+}
+
+function saveDiagram() {
+  const data = {
+    version: 1,
+    author: "Circuit Editor",
+    editor: "wokwi",
+    parts: state.parts.map(p => ({
+      type: p.type,
+      id: p.id,
+      top: p.top,
+      left: p.left,
+      attrs: p.attrs || {}
+    })),
+    connections: state.connections.map(c => {
+      const arr = [c[0], c[1], c[2]];
+      if (c[3] && c[3].length > 0) arr.push(c[3]);
+      return arr;
+    }),
+    serialMonitor: { display: "auto" }
+  };
+
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = state.filename || 'diagram.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  setStatus('Saved ' + (state.filename || 'diagram.json'));
+  setTimeout(() => setStatus('Ready'), 2000);
+}
+
+// ═══════════════════════════════════════════════════════
+// CONTEXT MENU
+// ═══════════════════════════════════════════════════════
+
+function showContextMenu(x, y) {
+  const menu = document.getElementById('contextMenu');
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  menu.style.display = 'block';
+}
+
+function hideContextMenu() {
+  document.getElementById('contextMenu').style.display = 'none';
+}
+
+function bringToFront() {
+  if (state.selectedType !== 'component') return;
+  const idx = state.parts.findIndex(p => p.id === state.selectedId);
+  if (idx === -1) return;
+  const [part] = state.parts.splice(idx, 1);
+  state.parts.push(part);
+  pushUndo();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════
+// STATUS BAR
+// ═══════════════════════════════════════════════════════
+
+function updateStatus() {
+  document.getElementById('statusParts').textContent = `${state.parts.length} parts`;
+  document.getElementById('statusWires').textContent = `${state.connections.length} wires`;
+}
+
+function setStatus(msg) {
+  document.getElementById('statusMode').textContent = msg;
+}
+
+// ═══════════════════════════════════════════════════════
+// DRAG & DROP FROM FILESYSTEM
+// ═══════════════════════════════════════════════════════
+
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => {
+  // Only handle file drops on the main area
+  if (e.target.closest('.palette-item')) return;
+  for (const file of e.dataTransfer.files) {
+    if (file.name.endsWith('.json')) {
+      e.preventDefault();
+      loadDiagramFile(file);
+      break;
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+
+window.addEventListener('load', init);
+window.addEventListener('resize', updateViewTransform);
+</script>
+</body>
+</html>

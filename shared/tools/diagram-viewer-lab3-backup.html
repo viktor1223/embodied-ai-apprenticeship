@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab 3: DC Motor Control — Circuit Viewer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; min-height: 100vh; }
+  header { padding: 12px 24px; background: #16213e; border-bottom: 1px solid #0f3460; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header .badge { background: #0f3460; padding: 4px 10px; border-radius: 12px; font-size: 11px; color: #7ec8e3; }
+  .main { display: flex; flex: 1; overflow: hidden; }
+  .diagram-panel { flex: 2; padding: 20px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .controls-panel { flex: 1; max-width: 340px; padding: 20px; background: #16213e; border-left: 1px solid #0f3460; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  .section-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #7ec8e3; margin-bottom: 8px; }
+
+  /* Controls */
+  .control-group { background: #1a1a2e; border: 1px solid #0f3460; border-radius: 8px; padding: 12px; }
+  .control-row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
+  .control-row label { font-size: 12px; font-family: monospace; color: #aaa; }
+  .toggle { width: 40px; height: 22px; background: #333; border-radius: 11px; cursor: pointer; position: relative; transition: background 0.2s; }
+  .toggle.on { background: #4caf50; }
+  .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+  .toggle.on::after { transform: translateX(18px); }
+  .slider-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .slider-row label { font-size: 12px; font-family: monospace; color: #aaa; min-width: 36px; }
+  .slider-row input[type=range] { flex: 1; accent-color: #9c27b0; }
+  .slider-row .value { font-size: 12px; font-family: monospace; color: #fff; min-width: 40px; text-align: right; }
+
+  /* Serial monitor */
+  .serial-monitor { background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; font-family: monospace; font-size: 11px; line-height: 1.6; height: 160px; overflow-y: auto; color: #0f0; }
+  .serial-monitor .info { color: #7ec8e3; }
+  .serial-monitor .motor { color: #ffb300; }
+
+  /* Motor status */
+  .motor-status { display: flex; gap: 12px; }
+  .motor-card { flex: 1; background: #1a1a2e; border: 1px solid #0f3460; border-radius: 8px; padding: 10px; text-align: center; }
+  .motor-card h4 { font-size: 11px; color: #888; margin-bottom: 6px; }
+  .motor-card .direction { font-size: 20px; margin: 4px 0; }
+  .motor-card .speed-bar { height: 6px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .motor-card .speed-bar .fill { height: 100%; background: #4caf50; transition: width 0.15s; }
+  .motor-card.reverse .speed-bar .fill { background: #f44336; }
+  .motor-card .speed-label { font-size: 10px; color: #888; margin-top: 4px; }
+
+  /* SVG diagram */
+  #circuit-svg { width: 100%; height: 100%; max-width: 700px; max-height: 500px; }
+  .wire { stroke-width: 2.5; fill: none; transition: opacity 0.2s; }
+  .wire.active { stroke-width: 3.5; filter: drop-shadow(0 0 4px currentColor); }
+  .component { transition: opacity 0.2s; }
+  .pin-dot { r: 4; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Lab 3: DC Motor Control via L298N</h1>
+  <span class="badge">Interactive Simulation</span>
+</header>
+
+<div class="main">
+  <!-- Circuit Diagram -->
+  <div class="diagram-panel">
+    <svg id="circuit-svg" viewBox="0 0 700 460" xmlns="http://www.w3.org/2000/svg">
+      <!-- Arduino -->
+      <rect x="20" y="180" width="160" height="200" rx="8" fill="#1565c0" stroke="#0d47a1" stroke-width="2"/>
+      <text x="100" y="215" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#fff">ARDUINO UNO</text>
+      <text x="100" y="235" text-anchor="middle" font-family="monospace" font-size="9" fill="#90caf9">ATmega328P</text>
+
+      <!-- Arduino pins -->
+      <circle id="pin-d9" cx="180" cy="265" r="4" fill="#9c27b0"/><text x="165" y="268" text-anchor="end" font-family="monospace" font-size="8" fill="#ccc">D9</text>
+      <circle id="pin-d8" cx="180" cy="285" r="4" fill="#1976d2"/><text x="165" y="288" text-anchor="end" font-family="monospace" font-size="8" fill="#ccc">D8</text>
+      <circle id="pin-d7" cx="180" cy="305" r="4" fill="#00acc1"/><text x="165" y="308" text-anchor="end" font-family="monospace" font-size="8" fill="#ccc">D7</text>
+      <circle id="pin-d6" cx="180" cy="330" r="4" fill="#2e7d32"/><text x="165" y="333" text-anchor="end" font-family="monospace" font-size="8" fill="#ccc">D6</text>
+      <circle id="pin-d5" cx="180" cy="350" r="4" fill="#1b5e20"/><text x="165" y="353" text-anchor="end" font-family="monospace" font-size="8" fill="#ccc">D5</text>
+      <circle id="pin-d10" cx="180" cy="370" r="4" fill="#e65100"/><text x="163" y="373" text-anchor="end" font-family="monospace" font-size="8" fill="#ccc">D10</text>
+
+      <!-- L298N -->
+      <rect x="280" y="160" width="160" height="240" rx="8" fill="#c62828" stroke="#8e0000" stroke-width="2"/>
+      <rect x="315" y="185" width="90" height="40" rx="3" fill="#424242"/>
+      <text x="360" y="207" text-anchor="middle" font-family="monospace" font-size="11" font-weight="bold" fill="#fff">L298N</text>
+      <text x="360" y="220" text-anchor="middle" font-family="monospace" font-size="8" fill="#bbb">H-BRIDGE</text>
+
+      <!-- L298N input pins (left) -->
+      <circle id="pin-ena" cx="280" cy="260" r="4" fill="#fdd835"/><text x="294" y="263" font-family="monospace" font-size="8" fill="#fff">ENA</text>
+      <circle id="pin-in1" cx="280" cy="285" r="4" fill="#fdd835"/><text x="294" y="288" font-family="monospace" font-size="8" fill="#fff">IN1</text>
+      <circle id="pin-in2" cx="280" cy="310" r="4" fill="#fdd835"/><text x="294" y="313" font-family="monospace" font-size="8" fill="#fff">IN2</text>
+      <circle id="pin-in3" cx="280" cy="340" r="4" fill="#fdd835"/><text x="294" y="343" font-family="monospace" font-size="8" fill="#fff">IN3</text>
+      <circle id="pin-in4" cx="280" cy="365" r="4" fill="#fdd835"/><text x="294" y="368" font-family="monospace" font-size="8" fill="#fff">IN4</text>
+      <circle id="pin-enb" cx="280" cy="390" r="4" fill="#fdd835"/><text x="294" y="393" font-family="monospace" font-size="8" fill="#fff">ENB</text>
+
+      <!-- L298N output pins (right) -->
+      <circle id="pin-out1" cx="440" cy="260" r="4" fill="#81d4fa"/><text x="426" y="263" text-anchor="end" font-family="monospace" font-size="8" fill="#fff">OUT1</text>
+      <circle id="pin-out2" cx="440" cy="285" r="4" fill="#81d4fa"/><text x="426" y="288" text-anchor="end" font-family="monospace" font-size="8" fill="#fff">OUT2</text>
+      <circle id="pin-out3" cx="440" cy="340" r="4" fill="#81d4fa"/><text x="426" y="343" text-anchor="end" font-family="monospace" font-size="8" fill="#fff">OUT3</text>
+      <circle id="pin-out4" cx="440" cy="365" r="4" fill="#81d4fa"/><text x="426" y="368" text-anchor="end" font-family="monospace" font-size="8" fill="#fff">OUT4</text>
+
+      <!-- Motor A -->
+      <ellipse id="motor-a-body" cx="570" cy="272" rx="38" ry="38" fill="#ffb300" stroke="#f57f17" stroke-width="2"/>
+      <rect x="606" y="264" width="20" height="16" rx="2" fill="#9e9e9e"/>
+      <text x="570" y="268" text-anchor="middle" font-family="monospace" font-size="10" font-weight="bold" fill="#333">DC</text>
+      <text x="570" y="282" text-anchor="middle" font-family="monospace" font-size="9" fill="#555">Motor A</text>
+      <!-- Motor A direction arrow -->
+      <g id="motor-a-arrow" opacity="0">
+        <path d="M 555 248 A 20 20 0 0 1 585 252" fill="none" stroke="#333" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+      </g>
+      <g id="motor-a-arrow-rev" opacity="0">
+        <path d="M 585 252 A 20 20 0 0 1 555 248" fill="none" stroke="#333" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+      </g>
+      <circle cx="532" cy="260" r="3" fill="#d32f2f"/><text x="526" y="254" text-anchor="end" font-family="monospace" font-size="7" fill="#aaa">T1</text>
+      <circle cx="532" cy="284" r="3" fill="#555"/><text x="526" y="291" text-anchor="end" font-family="monospace" font-size="7" fill="#aaa">T2</text>
+
+      <!-- Motor B -->
+      <ellipse id="motor-b-body" cx="570" cy="390" rx="38" ry="38" fill="#ffb300" stroke="#f57f17" stroke-width="2"/>
+      <rect x="606" y="382" width="20" height="16" rx="2" fill="#9e9e9e"/>
+      <text x="570" y="386" text-anchor="middle" font-family="monospace" font-size="10" font-weight="bold" fill="#333">DC</text>
+      <text x="570" y="400" text-anchor="middle" font-family="monospace" font-size="9" fill="#555">Motor B</text>
+      <g id="motor-b-arrow" opacity="0">
+        <path d="M 555 366 A 20 20 0 0 1 585 370" fill="none" stroke="#333" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+      </g>
+      <g id="motor-b-arrow-rev" opacity="0">
+        <path d="M 585 370 A 20 20 0 0 1 555 366" fill="none" stroke="#333" stroke-width="2.5" marker-end="url(#arrowhead)"/>
+      </g>
+      <circle cx="532" cy="378" r="3" fill="#d32f2f"/><text x="526" y="372" text-anchor="end" font-family="monospace" font-size="7" fill="#aaa">T1</text>
+      <circle cx="532" cy="402" r="3" fill="#555"/><text x="526" y="409" text-anchor="end" font-family="monospace" font-size="7" fill="#aaa">T2</text>
+
+      <!-- Arrowhead marker -->
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <path d="M 0 0 L 8 3 L 0 6 Z" fill="#333"/>
+        </marker>
+      </defs>
+
+      <!-- Wires -->
+      <line id="wire-ena" class="wire" x1="184" y1="265" x2="276" y2="260" stroke="#9c27b0"/>
+      <line id="wire-in1" class="wire" x1="184" y1="285" x2="276" y2="285" stroke="#1976d2"/>
+      <line id="wire-in2" class="wire" x1="184" y1="305" x2="276" y2="310" stroke="#00acc1"/>
+      <line id="wire-in3" class="wire" x1="184" y1="330" x2="276" y2="340" stroke="#2e7d32"/>
+      <line id="wire-in4" class="wire" x1="184" y1="350" x2="276" y2="365" stroke="#1b5e20"/>
+      <line id="wire-enb" class="wire" x1="184" y1="370" x2="276" y2="390" stroke="#e65100"/>
+
+      <line id="wire-out1" class="wire" x1="444" y1="260" x2="529" y2="260" stroke="#d32f2f"/>
+      <line id="wire-out2" class="wire" x1="444" y1="285" x2="529" y2="284" stroke="#795548"/>
+      <line id="wire-out3" class="wire" x1="444" y1="340" x2="529" y2="378" stroke="#d32f2f"/>
+      <line id="wire-out4" class="wire" x1="444" y1="365" x2="529" y2="402" stroke="#795548"/>
+
+      <!-- Power labels -->
+      <text x="360" y="420" text-anchor="middle" font-family="monospace" font-size="8" fill="#aaa">12V battery (motor power)</text>
+      <text x="100" y="395" text-anchor="middle" font-family="monospace" font-size="8" fill="#aaa">5V + GND →</text>
+
+      <!-- Signal labels on wires -->
+      <text id="label-ena-val" x="230" y="255" text-anchor="middle" font-family="monospace" font-size="8" fill="#ce93d8">0</text>
+      <text id="label-enb-val" x="230" y="396" text-anchor="middle" font-family="monospace" font-size="8" fill="#ffb74d">0</text>
+    </svg>
+  </div>
+
+  <!-- Controls Panel -->
+  <div class="controls-panel">
+    <div>
+      <div class="section-title">Channel A (Motor A)</div>
+      <div class="control-group">
+        <div class="slider-row">
+          <label>ENA</label>
+          <input type="range" id="ctrl-ena" min="0" max="255" value="0">
+          <span class="value" id="val-ena">0</span>
+        </div>
+        <div class="control-row">
+          <label>IN1</label>
+          <div class="toggle" id="ctrl-in1"></div>
+        </div>
+        <div class="control-row">
+          <label>IN2</label>
+          <div class="toggle" id="ctrl-in2"></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Channel B (Motor B)</div>
+      <div class="control-group">
+        <div class="slider-row">
+          <label>ENB</label>
+          <input type="range" id="ctrl-enb" min="0" max="255" value="0">
+          <span class="value" id="val-enb">0</span>
+        </div>
+        <div class="control-row">
+          <label>IN3</label>
+          <div class="toggle" id="ctrl-in3"></div>
+        </div>
+        <div class="control-row">
+          <label>IN4</label>
+          <div class="toggle" id="ctrl-in4"></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Motor Status</div>
+      <div class="motor-status">
+        <div class="motor-card" id="status-a">
+          <h4>Motor A</h4>
+          <div class="direction" id="dir-a">⏸</div>
+          <div class="speed-bar"><div class="fill" id="speed-a" style="width:0%"></div></div>
+          <div class="speed-label" id="speed-a-label">0%</div>
+        </div>
+        <div class="motor-card" id="status-b">
+          <h4>Motor B</h4>
+          <div class="direction" id="dir-b">⏸</div>
+          <div class="speed-bar"><div class="fill" id="speed-b" style="width:0%"></div></div>
+          <div class="speed-label" id="speed-b-label">0%</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Serial Monitor</div>
+      <div class="serial-monitor" id="serial"></div>
+    </div>
+
+    <div>
+      <div class="section-title">Auto-Run Demo</div>
+      <div class="control-group">
+        <button id="btn-demo" style="width:100%;padding:8px;background:#0f3460;color:#fff;border:1px solid #7ec8e3;border-radius:4px;cursor:pointer;font-size:12px;">▶ Run Loop Sequence</button>
+        <button id="btn-stop" style="width:100%;padding:8px;margin-top:6px;background:#333;color:#fff;border:1px solid #555;border-radius:4px;cursor:pointer;font-size:12px;">⏹ Stop</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// State
+const state = { ena: 0, enb: 0, in1: false, in2: false, in3: false, in4: false };
+let demoInterval = null;
+
+// DOM refs
+const ctrlEna = document.getElementById('ctrl-ena');
+const ctrlEnb = document.getElementById('ctrl-enb');
+const valEna = document.getElementById('val-ena');
+const valEnb = document.getElementById('val-enb');
+const toggles = { in1: document.getElementById('ctrl-in1'), in2: document.getElementById('ctrl-in2'), in3: document.getElementById('ctrl-in3'), in4: document.getElementById('ctrl-in4') };
+const serial = document.getElementById('serial');
+
+// Toggle click handlers
+Object.entries(toggles).forEach(([key, el]) => {
+  el.addEventListener('click', () => {
+    state[key] = !state[key];
+    el.classList.toggle('on', state[key]);
+    update();
+  });
+});
+
+// Slider handlers
+ctrlEna.addEventListener('input', () => { state.ena = parseInt(ctrlEna.value); valEna.textContent = state.ena; update(); });
+ctrlEnb.addEventListener('input', () => { state.enb = parseInt(ctrlEnb.value); valEnb.textContent = state.enb; update(); });
+
+// L298N H-Bridge Logic (same as chip.c)
+function computeOutputs() {
+  const Vs = 12;
+  let outA = { v1: 0, v2: 0, direction: 'STOPPED', speed: 0 };
+  let outB = { v1: 0, v2: 0, direction: 'STOPPED', speed: 0 };
+
+  const dutyA = state.ena / 255;
+  const dutyB = state.enb / 255;
+
+  if (state.ena > 0) {
+    outA.v1 = state.in1 ? Vs * dutyA : 0;
+    outA.v2 = state.in2 ? Vs * dutyA : 0;
+    const diff = outA.v1 - outA.v2;
+    if (diff > 0.5) { outA.direction = 'FORWARD'; outA.speed = Math.round(dutyA * 100); }
+    else if (diff < -0.5) { outA.direction = 'REVERSE'; outA.speed = Math.round(dutyA * 100); }
+    else if (state.in1 && state.in2) { outA.direction = 'BRAKE'; outA.speed = 0; }
+  }
+
+  if (state.enb > 0) {
+    outB.v1 = state.in3 ? Vs * dutyB : 0;
+    outB.v2 = state.in4 ? Vs * dutyB : 0;
+    const diff = outB.v1 - outB.v2;
+    if (diff > 0.5) { outB.direction = 'FORWARD'; outB.speed = Math.round(dutyB * 100); }
+    else if (diff < -0.5) { outB.direction = 'REVERSE'; outB.speed = Math.round(dutyB * 100); }
+    else if (state.in3 && state.in4) { outB.direction = 'BRAKE'; outB.speed = 0; }
+  }
+
+  return { a: outA, b: outB };
+}
+
+function update() {
+  const { a, b } = computeOutputs();
+
+  // Motor A visual
+  const dirA = document.getElementById('dir-a');
+  const speedA = document.getElementById('speed-a');
+  const speedALabel = document.getElementById('speed-a-label');
+  const statusA = document.getElementById('status-a');
+  dirA.textContent = a.direction === 'FORWARD' ? '⟳' : a.direction === 'REVERSE' ? '⟲' : a.direction === 'BRAKE' ? '🛑' : '⏸';
+  speedA.style.width = a.speed + '%';
+  speedALabel.textContent = a.speed + '%';
+  statusA.className = 'motor-card' + (a.direction === 'REVERSE' ? ' reverse' : '');
+
+  // Motor B visual
+  const dirB = document.getElementById('dir-b');
+  const speedB = document.getElementById('speed-b');
+  const speedBLabel = document.getElementById('speed-b-label');
+  const statusB = document.getElementById('status-b');
+  dirB.textContent = b.direction === 'FORWARD' ? '⟳' : b.direction === 'REVERSE' ? '⟲' : b.direction === 'BRAKE' ? '🛑' : '⏸';
+  speedB.style.width = b.speed + '%';
+  speedBLabel.textContent = b.speed + '%';
+  statusB.className = 'motor-card' + (b.direction === 'REVERSE' ? ' reverse' : '');
+
+  // SVG motor arrows
+  document.getElementById('motor-a-arrow').setAttribute('opacity', a.direction === 'FORWARD' ? '1' : '0');
+  document.getElementById('motor-a-arrow-rev').setAttribute('opacity', a.direction === 'REVERSE' ? '1' : '0');
+  document.getElementById('motor-b-arrow').setAttribute('opacity', b.direction === 'FORWARD' ? '1' : '0');
+  document.getElementById('motor-b-arrow-rev').setAttribute('opacity', b.direction === 'REVERSE' ? '1' : '0');
+
+  // SVG motor color
+  document.getElementById('motor-a-body').setAttribute('fill', a.direction === 'FORWARD' ? '#66bb6a' : a.direction === 'REVERSE' ? '#ef5350' : '#ffb300');
+  document.getElementById('motor-b-body').setAttribute('fill', b.direction === 'FORWARD' ? '#66bb6a' : b.direction === 'REVERSE' ? '#ef5350' : '#ffb300');
+
+  // Wire highlights
+  document.getElementById('wire-ena').classList.toggle('active', state.ena > 0);
+  document.getElementById('wire-in1').classList.toggle('active', state.in1);
+  document.getElementById('wire-in2').classList.toggle('active', state.in2);
+  document.getElementById('wire-in3').classList.toggle('active', state.in3);
+  document.getElementById('wire-in4').classList.toggle('active', state.in4);
+  document.getElementById('wire-enb').classList.toggle('active', state.enb > 0);
+  document.getElementById('wire-out1').classList.toggle('active', a.direction !== 'STOPPED');
+  document.getElementById('wire-out2').classList.toggle('active', a.direction !== 'STOPPED');
+  document.getElementById('wire-out3').classList.toggle('active', b.direction !== 'STOPPED');
+  document.getElementById('wire-out4').classList.toggle('active', b.direction !== 'STOPPED');
+
+  // ENA/ENB value labels on diagram
+  document.getElementById('label-ena-val').textContent = state.ena;
+  document.getElementById('label-enb-val').textContent = state.enb;
+}
+
+function log(msg, cls = '') {
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  serial.appendChild(line);
+  serial.scrollTop = serial.scrollHeight;
+}
+
+// Demo sequence (mirrors main.cpp loop)
+function runDemo() {
+  stopDemo();
+  log('--- Demo started ---', 'info');
+  const steps = [
+    { ena: 191, enb: 191, in1: true, in2: false, in3: true, in4: false, msg: 'Both motors FORWARD @ 75%', duration: 2000 },
+    { ena: 0, enb: 0, in1: false, in2: false, in3: false, in4: false, msg: 'STOPPED', duration: 1000 },
+    { ena: 127, enb: 127, in1: false, in2: true, in3: false, in4: true, msg: 'Both motors REVERSE @ 50%', duration: 2000 },
+    { ena: 0, enb: 0, in1: false, in2: false, in3: false, in4: false, msg: 'STOPPED', duration: 1000 },
+    { ena: 150, enb: 150, in1: true, in2: false, in3: false, in4: true, msg: 'Turning LEFT (differential)', duration: 1500 },
+    { ena: 0, enb: 0, in1: false, in2: false, in3: false, in4: false, msg: 'STOPPED', duration: 1000 },
+    { ena: 150, enb: 150, in1: false, in2: true, in3: true, in4: false, msg: 'Turning RIGHT (differential)', duration: 1500 },
+    { ena: 0, enb: 0, in1: false, in2: false, in3: false, in4: false, msg: 'STOPPED', duration: 2000 },
+  ];
+
+  let i = 0;
+  function step() {
+    if (i >= steps.length) { i = 0; } // loop
+    const s = steps[i];
+    state.ena = s.ena; state.enb = s.enb;
+    state.in1 = s.in1; state.in2 = s.in2; state.in3 = s.in3; state.in4 = s.in4;
+    // Sync UI
+    ctrlEna.value = state.ena; valEna.textContent = state.ena;
+    ctrlEnb.value = state.enb; valEnb.textContent = state.enb;
+    toggles.in1.classList.toggle('on', state.in1);
+    toggles.in2.classList.toggle('on', state.in2);
+    toggles.in3.classList.toggle('on', state.in3);
+    toggles.in4.classList.toggle('on', state.in4);
+    update();
+    log(s.msg, 'motor');
+    i++;
+    demoInterval = setTimeout(step, s.duration);
+  }
+  step();
+}
+
+function stopDemo() {
+  if (demoInterval) { clearTimeout(demoInterval); demoInterval = null; }
+}
+
+document.getElementById('btn-demo').addEventListener('click', runDemo);
+document.getElementById('btn-stop').addEventListener('click', () => { stopDemo(); log('--- Demo stopped ---', 'info'); });
+
+// Initial render
+update();
+log('Lab 3: DC Motor Control via L298N', 'info');
+log('Use controls or click "Run Loop Sequence" to simulate', 'info');
+</script>
+</body>
+</html>

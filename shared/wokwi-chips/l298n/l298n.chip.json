@@ -1,0 +1,32 @@
+{
+  "name": "L298N Motor Driver",
+  "author": "Embodied AI Apprenticeship",
+  "pins": [
+    "ENA",
+    "IN1",
+    "IN2",
+    "IN3",
+    "IN4",
+    "ENB",
+    "",
+    "",
+    "OUT1",
+    "OUT2",
+    "OUT3",
+    "OUT4",
+    "5V",
+    "GND",
+    "12V",
+    "GND2"
+  ],
+  "controls": [
+    {
+      "id": "Vs",
+      "label": "Motor Supply Voltage (V)",
+      "type": "range",
+      "min": 0,
+      "max": 35,
+      "step": 1
+    }
+  ]
+}

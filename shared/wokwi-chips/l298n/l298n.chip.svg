@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="160" viewBox="0 0 220 160">
+  <!-- Board body -->
+  <rect x="10" y="10" width="200" height="140" rx="4" fill="#c62828" stroke="#8e0000" stroke-width="2"/>
+  
+  <!-- Heatsink -->
+  <rect x="70" y="30" width="80" height="50" rx="2" fill="#424242" stroke="#212121" stroke-width="1"/>
+  <text x="110" y="52" text-anchor="middle" font-family="monospace" font-size="9" fill="#fff">L298N</text>
+  <text x="110" y="66" text-anchor="middle" font-family="monospace" font-size="7" fill="#ccc">H-BRIDGE</text>
+  
+  <!-- Screw terminals top (motor outputs) -->
+  <rect x="30" y="12" width="16" height="12" rx="2" fill="#1565c0"/>
+  <rect x="50" y="12" width="16" height="12" rx="2" fill="#1565c0"/>
+  <text x="49" y="8" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">OUT1 OUT2</text>
+  
+  <rect x="154" y="12" width="16" height="12" rx="2" fill="#1565c0"/>
+  <rect x="174" y="12" width="16" height="12" rx="2" fill="#1565c0"/>
+  <text x="170" y="8" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">OUT3 OUT4</text>
+  
+  <!-- Power terminals bottom -->
+  <rect x="60" y="136" width="16" height="12" rx="2" fill="#1565c0"/>
+  <rect x="90" y="136" width="16" height="12" rx="2" fill="#1565c0"/>
+  <rect x="120" y="136" width="16" height="12" rx="2" fill="#1565c0"/>
+  <text x="68" y="155" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">12V</text>
+  <text x="98" y="155" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">GND</text>
+  <text x="128" y="155" text-anchor="middle" font-family="monospace" font-size="6" fill="#fff">5V</text>
+  
+  <!-- Control pins left side -->
+  <circle cx="15" cy="90" r="3" fill="#fdd835"/>
+  <circle cx="15" cy="102" r="3" fill="#fdd835"/>
+  <circle cx="15" cy="114" r="3" fill="#fdd835"/>
+  <text x="28" y="92" font-family="monospace" font-size="6" fill="#fff">ENA</text>
+  <text x="28" y="104" font-family="monospace" font-size="6" fill="#fff">IN1</text>
+  <text x="28" y="116" font-family="monospace" font-size="6" fill="#fff">IN2</text>
+  
+  <!-- Control pins right side -->
+  <circle cx="205" cy="90" r="3" fill="#fdd835"/>
+  <circle cx="205" cy="102" r="3" fill="#fdd835"/>
+  <circle cx="205" cy="114" r="3" fill="#fdd835"/>
+  <text x="178" y="92" font-family="monospace" font-size="6" fill="#fff">ENB</text>
+  <text x="178" y="104" font-family="monospace" font-size="6" fill="#fff">IN3</text>
+  <text x="178" y="116" font-family="monospace" font-size="6" fill="#fff">IN4</text>
+  
+  <!-- Jumper caps -->
+  <rect x="30" y="88" width="8" height="14" rx="1" fill="#212121" stroke="#000" stroke-width="0.5"/>
+  <rect x="182" y="88" width="8" height="14" rx="1" fill="#212121" stroke="#000" stroke-width="0.5"/>
+</svg>

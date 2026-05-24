@@ -102,6 +102,24 @@ We use [Wokwi for VS Code](https://marketplace.visualstudio.com/items?itemName=W
 
 **The rule:** Wokwi proves your *logic* is right. Physical hardware proves your *system* works. You need both. If the serial output shows correct values but the component doesn't animate — that's a sim limitation, not a bug in your circuit. Build it for real to see it move.
 
+### Custom Wokwi Chips
+
+Wokwi does not include every component (no L298N H-bridge, no DC motor). We build custom chips to fill the gaps. These live in `shared/wokwi-chips/` as the source of truth and get copied into each project's `chips/` folder.
+
+| Chip | Location | What it simulates |
+|------|----------|-------------------|
+| L298N | `shared/wokwi-chips/l298n/` | Dual H-bridge motor driver — enable gating, direction logic, voltage output |
+| DC Motor | `shared/wokwi-chips/dc-motor/` | Reads terminal voltage differential, prints direction and speed % to console |
+
+**How to use them in a project:**
+
+1. Copy the `.chip.json` and `.chip.c` files into your project's `chips/` directory
+2. Reference them in `diagram.json` with type `"chip-l298n"` or `"chip-dc-motor"`
+3. Wire pins as normal in the `"connections"` array
+4. Run `pio run` then start the Wokwi simulator — chip output appears in the debug console
+
+**Adding new chips:** Create a new folder under `shared/wokwi-chips/<chip-name>/` with a `.chip.json` (pin definitions, controls) and a `.chip.c` (logic using the [Wokwi Chips API](https://docs.wokwi.com/chips-api/getting-started)).
+
 ---
 
 ## Repository Structure

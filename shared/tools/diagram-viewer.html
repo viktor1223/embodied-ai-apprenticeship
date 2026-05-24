@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Circuit Diagram Viewer</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* Header */
+header { padding: 10px 20px; background: #16213e; border-bottom: 1px solid #0f3460; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+header h1 { font-size: 15px; font-weight: 600; }
+header .badge { background: #0f3460; padding: 3px 10px; border-radius: 12px; font-size: 11px; color: #7ec8e3; }
+header .load-btn { background: #0f3460; border: 1px solid #7ec8e3; color: #7ec8e3; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+header .load-btn:hover { background: #1a3a6e; }
+
+/* Main layout */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* Drop zone overlay */
+.drop-zone { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,52,96,0.92); display: flex; align-items: center; justify-content: center; z-index: 100; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+.drop-zone.active { opacity: 1; pointer-events: all; }
+.drop-zone-inner { border: 3px dashed #7ec8e3; border-radius: 16px; padding: 60px 80px; text-align: center; }
+.drop-zone-inner h2 { font-size: 20px; color: #7ec8e3; margin-bottom: 8px; }
+.drop-zone-inner p { font-size: 13px; color: #aaa; }
+
+/* Diagram panel */
+.diagram-panel { flex: 2; padding: 16px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+#circuit-svg { width: 100%; height: 100%; }
+.wire { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.wire:hover { stroke-width: 4; filter: drop-shadow(0 0 3px currentColor); }
+.component-group text { pointer-events: none; }
+
+/* Right panel */
+.right-panel { width: 360px; min-width: 300px; background: #16213e; border-left: 1px solid #0f3460; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.tab-bar { display: flex; border-bottom: 1px solid #0f3460; flex-shrink: 0; }
+.tab-bar button { flex: 1; padding: 8px; background: none; border: none; color: #888; font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent; }
+.tab-bar button.active { color: #7ec8e3; border-bottom-color: #7ec8e3; }
+.tab-content { flex: 1; overflow-y: auto; padding: 12px; display: none; }
+.tab-content.active { display: block; }
+
+/* Info tab */
+.info-section { margin-bottom: 16px; }
+.info-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #7ec8e3; margin-bottom: 6px; }
+.parts-list { list-style: none; }
+.parts-list li { font-size: 12px; padding: 4px 8px; margin: 2px 0; background: #1a1a2e; border-radius: 4px; font-family: monospace; display: flex; justify-content: space-between; }
+.parts-list li .type { color: #aaa; }
+.connections-list { font-family: monospace; font-size: 11px; line-height: 1.8; }
+.connections-list .conn { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.connections-list .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* Source tab */
+.source-code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; line-height: 1.6; white-space: pre; color: #ccc; background: #111; border-radius: 6px; padding: 12px; overflow: auto; height: 100%; tab-size: 2; }
+.source-code .kw { color: #c792ea; }
+.source-code .fn { color: #82aaff; }
+.source-code .num { color: #f78c6c; }
+.source-code .str { color: #c3e88d; }
+.source-code .cmt { color: #546e7a; font-style: italic; }
+.source-code .pre { color: #89ddff; }
+.source-code .type { color: #ffcb6b; }
+
+/* Controls tab */
+.ctrl-group { background: #1a1a2e; border: 1px solid #0f3460; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.ctrl-group h4 { font-size: 11px; color: #7ec8e3; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.ctrl-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.ctrl-row label { font-size: 12px; font-family: monospace; color: #aaa; min-width: 50px; }
+.ctrl-row input[type=range] { flex: 1; accent-color: #7ec8e3; }
+.ctrl-row .val { font-size: 11px; font-family: monospace; color: #fff; min-width: 35px; text-align: right; }
+
+/* Welcome state */
+.welcome { text-align: center; color: #555; padding: 40px; }
+.welcome h2 { font-size: 18px; color: #7ec8e3; margin-bottom: 12px; }
+.welcome p { font-size: 13px; line-height: 1.7; margin-bottom: 8px; }
+.welcome code { background: #0f3460; padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #7ec8e3; }
+
+/* Legend */
+.legend { position: absolute; bottom: 12px; left: 12px; background: rgba(22,33,62,0.9); border: 1px solid #0f3460; border-radius: 6px; padding: 8px 12px; font-size: 10px; }
+.legend-item { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<!-- Drop zone overlay -->
+<div class="drop-zone" id="dropZone">
+  <div class="drop-zone-inner">
+    <h2>Drop Files Here</h2>
+    <p>diagram.json + source files (.cpp, .c, .h, .ino)</p>
+  </div>
+</div>
+
+<header>
+  <h1 id="title">Circuit Diagram Viewer</h1>
+  <span class="badge" id="badge">No project loaded</span>
+  <button class="load-btn" id="btnLoadDiagram">📂 Load diagram.json</button>
+  <button class="load-btn" id="btnLoadSource">📄 Load source</button>
+  <input type="file" id="fileInputDiagram" accept=".json" hidden>
+  <input type="file" id="fileInputSource" accept=".cpp,.c,.h,.ino,.txt" hidden>
+</header>
+
+<div class="main">
+  <!-- SVG Diagram -->
+  <div class="diagram-panel" id="diagramPanel">
+    <div class="welcome" id="welcome">
+      <h2>Circuit Diagram Viewer</h2>
+      <p>Load a project's <code>diagram.json</code> to visualize the circuit.</p>
+      <p>Optionally load <code>src/main.cpp</code> to see the firmware code.</p>
+      <p style="margin-top: 16px; color: #666;">Drag &amp; drop files anywhere, or use the buttons above.</p>
+      <p style="margin-top: 24px; font-size: 11px; color: #444;">Supports: Arduino Uno, LEDs, Potentiometers, Resistors, Servos, L298N, DC Motors</p>
+    </div>
+    <svg id="circuit-svg" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg" style="display:none;">
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <path d="M 0 0 L 8 3 L 0 6 Z" fill="#888"/>
+        </marker>
+      </defs>
+    </svg>
+    <div class="legend" id="legend" style="display:none;"></div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel">
+    <div class="tab-bar">
+      <button class="active" data-tab="info">Info</button>
+      <button data-tab="source">Source</button>
+      <button data-tab="controls">Controls</button>
+    </div>
+    <div class="tab-content active" id="tab-info">
+      <div class="welcome" id="infoWelcome">
+        <p style="color:#666;font-size:12px;">Load a diagram to see component and connection details.</p>
+      </div>
+      <div id="infoContent" style="display:none;"></div>
+    </div>
+    <div class="tab-content" id="tab-source">
+      <div class="source-code" id="sourceCode">// No source file loaded yet.
+// Use the "Load source" button or drag & drop a .cpp file.</div>
+    </div>
+    <div class="tab-content" id="tab-controls">
+      <div class="ctrl-group" style="margin-bottom:12px;">
+        <h4>Run Firmware</h4>
+        <div style="display:flex;gap:6px;">
+          <button id="btnPlay" style="flex:1;padding:8px;background:#1b5e20;color:#fff;border:1px solid #4caf50;border-radius:4px;cursor:pointer;font-size:12px;">▶ Play</button>
+          <button id="btnStop" style="flex:1;padding:8px;background:#333;color:#aaa;border:1px solid #555;border-radius:4px;cursor:pointer;font-size:12px;">⏹ Stop</button>
+        </div>
+        <div id="playStatus" style="font-size:10px;color:#666;margin-top:4px;"></div>
+      </div>
+      <div id="controlsContent">
+        <p style="color:#666;font-size:12px;">Controls appear after loading a diagram with interactive components (potentiometers, buttons).</p>
+      </div>
+      <div class="ctrl-group" style="margin-top:12px;">
+        <h4>Serial Monitor</h4>
+        <pre id="serialOutput" style="background:#111;color:#0f0;font-family:monospace;font-size:10px;line-height:1.5;padding:8px;border-radius:4px;height:150px;overflow-y:auto;white-space:pre-wrap;margin:0;"></pre>
+        <button id="btnClearSerial" style="margin-top:6px;padding:4px 10px;background:#333;color:#aaa;border:1px solid #555;border-radius:3px;font-size:10px;cursor:pointer;">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────
+// COMPONENT REGISTRY
+// Each entry: { width, height, render(g, part), pins: { name: {x, y} } }
+// Pin positions are relative to the component's top-left
+// ─────────────────────────────────────────────────────
+
+const COMPONENT_REGISTRY = {
+
+  'wokwi-arduino-uno': {
+    width: 180, height: 220,
+    pins: {
+      // Digital pins (right side, from top)
+      '13': {x: 180, y: 30}, '12': {x: 180, y: 42}, '11': {x: 180, y: 54}, '10': {x: 180, y: 66},
+      '9': {x: 180, y: 78}, '8': {x: 180, y: 90},
+      '7': {x: 180, y: 108}, '6': {x: 180, y: 120}, '5': {x: 180, y: 132}, '4': {x: 180, y: 144},
+      '3': {x: 180, y: 156}, '2': {x: 180, y: 168}, '1': {x: 180, y: 180}, '0': {x: 180, y: 192},
+      // Power pins (left side, from top)
+      'RESET': {x: 0, y: 30}, '3.3V': {x: 0, y: 48}, '5V': {x: 0, y: 64}, 'GND.1': {x: 0, y: 80},
+      'GND.2': {x: 0, y: 96}, 'GND.3': {x: 0, y: 96}, 'VIN': {x: 0, y: 112},
+      // Analog pins (left side, lower)
+      'A0': {x: 0, y: 136}, 'A1': {x: 0, y: 150}, 'A2': {x: 0, y: 164}, 'A3': {x: 0, y: 178},
+      'A4': {x: 0, y: 192}, 'A5': {x: 0, y: 206},
+    },
+    render(g, part) {
+      g.innerHTML = `
+        <rect width="180" height="220" rx="6" fill="#1565c0" stroke="#0d47a1" stroke-width="2"/>
+        <rect x="10" y="10" width="160" height="50" rx="3" fill="#0d47a1"/>
+        <text x="90" y="35" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#fff">ARDUINO UNO</text>
+        <text x="90" y="50" text-anchor="middle" font-family="monospace" font-size="8" fill="#90caf9">ATmega328P</text>
+        <text x="173" y="20" text-anchor="end" font-family="monospace" font-size="7" fill="#64b5f6">DIGITAL</text>
+        <text x="7" y="125" font-family="monospace" font-size="7" fill="#64b5f6">ANALOG</text>
+        ${Object.entries(this.pins).filter(([n]) => !n.startsWith('G') && !n.startsWith('5') && !n.startsWith('3.') && !n.startsWith('V') && !n.startsWith('R') && !n.startsWith('A')).map(([name, p]) =>
+          `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#fdd835"/><text x="${p.x - 8}" y="${p.y + 3}" text-anchor="end" font-size="7" fill="#aaa" font-family="monospace">${name}</text>`
+        ).join('')}
+        ${Object.entries(this.pins).filter(([n]) => n.startsWith('A')).map(([name, p]) =>
+          `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#66bb6a"/><text x="${p.x + 8}" y="${p.y + 3}" font-size="7" fill="#aaa" font-family="monospace">${name}</text>`
+        ).join('')}
+      `;
+    }
+  },
+
+  'wokwi-led': {
+    width: 40, height: 60,
+    pins: { 'A': {x: 14, y: 0}, 'C': {x: 26, y: 0} },
+    render(g, part) {
+      const color = (part.attrs && part.attrs.color) || 'red';
+      const colorMap = { red: '#f44336', green: '#4caf50', blue: '#2196f3', yellow: '#ffeb3b', white: '#ffffff', orange: '#ff9800' };
+      const fill = colorMap[color] || color;
+      g.innerHTML = `
+        <ellipse cx="20" cy="35" rx="14" ry="18" fill="${fill}" opacity="0.85" stroke="${fill}" stroke-width="1"/>
+        <rect x="12" y="8" width="4" height="20" fill="#aaa" rx="1"/>
+        <rect x="22" y="5" width="4" height="23" fill="#aaa" rx="1"/>
+        <text x="20" y="58" text-anchor="middle" font-size="8" fill="#aaa" font-family="monospace">LED</text>
+        <text x="14" y="6" text-anchor="middle" font-size="6" fill="#888">A</text>
+        <text x="26" y="3" text-anchor="middle" font-size="6" fill="#888">C</text>
+      `;
+    }
+  },
+
+  'wokwi-potentiometer': {
+    width: 60, height: 60,
+    pins: { 'GND': {x: 10, y: 0}, 'SIG': {x: 30, y: 0}, 'VCC': {x: 50, y: 0} },
+    render(g, part) {
+      g.innerHTML = `
+        <rect x="5" y="15" width="50" height="40" rx="4" fill="#1b5e20" stroke="#2e7d32" stroke-width="1.5"/>
+        <circle cx="30" cy="35" r="12" fill="#424242" stroke="#666" stroke-width="1.5"/>
+        <line x1="30" y1="35" x2="30" y2="24" stroke="#fdd835" stroke-width="2" stroke-linecap="round"/>
+        <rect x="8" y="2" width="4" height="14" fill="#aaa" rx="1"/>
+        <rect x="28" y="2" width="4" height="14" fill="#aaa" rx="1"/>
+        <rect x="48" y="2" width="4" height="14" fill="#aaa" rx="1"/>
+        <text x="30" y="56" text-anchor="middle" font-size="7" fill="#aaa" font-family="monospace">POT</text>
+      `;
+    }
+  },
+
+  'wokwi-resistor': {
+    width: 70, height: 20,
+    pins: { '1': {x: 0, y: 10}, '2': {x: 70, y: 10} },
+    render(g, part) {
+      const r = (part.attrs && part.attrs.resistance) || '?';
+      g.innerHTML = `
+        <line x1="0" y1="10" x2="15" y2="10" stroke="#aaa" stroke-width="2"/>
+        <rect x="15" y="3" width="40" height="14" rx="2" fill="#b39ddb" stroke="#7e57c2" stroke-width="1"/>
+        <line x1="55" y1="10" x2="70" y2="10" stroke="#aaa" stroke-width="2"/>
+        <text x="35" y="13" text-anchor="middle" font-size="7" fill="#fff" font-family="monospace">${r}Ω</text>
+      `;
+    }
+  },
+
+  'wokwi-servo': {
+    width: 80, height: 50,
+    pins: { 'GND': {x: 20, y: 50}, 'V+': {x: 40, y: 50}, 'PWM': {x: 60, y: 50} },
+    render(g, part) {
+      g.innerHTML = `
+        <rect x="0" y="0" width="80" height="35" rx="4" fill="#1565c0" stroke="#0d47a1" stroke-width="1.5"/>
+        <circle cx="65" cy="17" r="10" fill="#333" stroke="#555" stroke-width="1.5"/>
+        <line x1="65" y1="17" x2="65" y2="8" stroke="#fdd835" stroke-width="2" stroke-linecap="round"/>
+        <text x="28" y="20" font-size="9" fill="#fff" font-family="monospace" font-weight="bold">SERVO</text>
+        <rect x="16" y="35" width="6" height="12" fill="#333" rx="1"/>
+        <rect x="36" y="35" width="6" height="12" fill="#d32f2f" rx="1"/>
+        <rect x="56" y="35" width="6" height="12" fill="#ff9800" rx="1"/>
+        <text x="19" y="55" text-anchor="middle" font-size="5" fill="#888">G</text>
+        <text x="39" y="55" text-anchor="middle" font-size="5" fill="#888">V+</text>
+        <text x="59" y="55" text-anchor="middle" font-size="5" fill="#888">PWM</text>
+      `;
+    }
+  },
+
+  'chip-l298n': {
+    width: 140, height: 180,
+    pins: {
+      'ENA': {x: 0, y: 40}, 'IN1': {x: 0, y: 60}, 'IN2': {x: 0, y: 80},
+      'IN3': {x: 0, y: 110}, 'IN4': {x: 0, y: 130}, 'ENB': {x: 0, y: 150},
+      'OUT1': {x: 140, y: 40}, 'OUT2': {x: 140, y: 60},
+      'OUT3': {x: 140, y: 110}, 'OUT4': {x: 140, y: 130},
+      '5V': {x: 50, y: 180}, 'GND': {x: 70, y: 180}, '12V': {x: 90, y: 180}, 'GND2': {x: 110, y: 180}
+    },
+    render(g, part) {
+      const vs = (part.attrs && part.attrs.Vs) || '12';
+      g.innerHTML = `
+        <rect width="140" height="180" rx="6" fill="#b71c1c" stroke="#7f0000" stroke-width="2"/>
+        <rect x="20" y="10" width="100" height="30" rx="3" fill="#424242"/>
+        <text x="70" y="27" text-anchor="middle" font-family="monospace" font-size="11" font-weight="bold" fill="#fff">L298N</text>
+        <text x="70" y="38" text-anchor="middle" font-family="monospace" font-size="7" fill="#bbb">H-BRIDGE (${vs}V)</text>
+        <!-- Channel A zone -->
+        <rect x="10" y="48" width="120" height="35" rx="2" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)"/>
+        <text x="70" y="58" text-anchor="middle" font-size="7" fill="#ffcdd2">Channel A</text>
+        <!-- Channel B zone -->
+        <rect x="10" y="98" width="120" height="44" rx="2" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)"/>
+        <text x="70" y="108" text-anchor="middle" font-size="7" fill="#ffcdd2">Channel B</text>
+        <!-- Input pins -->
+        ${['ENA','IN1','IN2','IN3','IN4','ENB'].map(n => {
+          const p = this.pins[n];
+          return `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#fdd835"/><text x="10" y="${p.y+3}" font-size="7" fill="#fff" font-family="monospace">${n}</text>`;
+        }).join('')}
+        <!-- Output pins -->
+        ${['OUT1','OUT2','OUT3','OUT4'].map(n => {
+          const p = this.pins[n];
+          return `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#81d4fa"/><text x="${p.x-10}" y="${p.y+3}" text-anchor="end" font-size="7" fill="#fff" font-family="monospace">${n}</text>`;
+        }).join('')}
+        <!-- Power pins -->
+        <text x="70" y="175" text-anchor="middle" font-size="6" fill="#888">5V GND 12V GND</text>
+      `;
+    }
+  },
+
+  'chip-dc-motor': {
+    width: 70, height: 70,
+    pins: { 'TERM1': {x: 15, y: 70}, 'TERM2': {x: 55, y: 70} },
+    render(g, part) {
+      g.innerHTML = `
+        <circle cx="35" cy="30" r="28" fill="#ff8f00" stroke="#e65100" stroke-width="2"/>
+        <rect x="58" y="22" width="15" height="12" rx="2" fill="#757575"/>
+        <text x="35" y="27" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#333">DC</text>
+        <text x="35" y="38" text-anchor="middle" font-family="monospace" font-size="7" fill="#555">MOTOR</text>
+        <rect x="12" y="58" width="4" height="12" fill="#aaa" rx="1"/>
+        <rect x="52" y="58" width="4" height="12" fill="#aaa" rx="1"/>
+        <text x="14" y="75" text-anchor="middle" font-size="5" fill="#888">T1</text>
+        <text x="54" y="75" text-anchor="middle" font-size="5" fill="#888">T2</text>
+      `;
+    }
+  }
+};
+
+// ─────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────
+let diagram = null;
+let sourceText = '';
+let componentPositions = {}; // id -> { x, y, def, part }
+let pinWorldPositions = {}; // "partId:pinName" -> { x, y }
+
+// ─────────────────────────────────────────────────────
+// TAB SWITCHING
+// ─────────────────────────────────────────────────────
+document.querySelectorAll('.tab-bar button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ─────────────────────────────────────────────────────
+// FILE LOADING
+// ─────────────────────────────────────────────────────
+const fileInputDiagram = document.getElementById('fileInputDiagram');
+const fileInputSource = document.getElementById('fileInputSource');
+
+document.getElementById('btnLoadDiagram').addEventListener('click', () => fileInputDiagram.click());
+document.getElementById('btnLoadSource').addEventListener('click', () => fileInputSource.click());
+
+fileInputDiagram.addEventListener('change', (e) => {
+  if (e.target.files[0]) loadDiagramFile(e.target.files[0]);
+});
+fileInputSource.addEventListener('change', (e) => {
+  if (e.target.files[0]) loadSourceFile(e.target.files[0]);
+});
+
+// Drag and drop
+const dropZone = document.getElementById('dropZone');
+let dragCounter = 0;
+
+document.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; dropZone.classList.add('active'); });
+document.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter <= 0) { dropZone.classList.remove('active'); dragCounter = 0; } });
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragCounter = 0;
+  dropZone.classList.remove('active');
+  for (const file of e.dataTransfer.files) {
+    if (file.name.endsWith('.json')) loadDiagramFile(file);
+    else if (/\.(cpp|c|h|ino|txt)$/i.test(file.name)) loadSourceFile(file);
+  }
+});
+
+function loadDiagramFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      diagram = JSON.parse(e.target.result);
+      renderDiagram();
+    } catch (err) {
+      alert('Failed to parse diagram.json: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function loadSourceFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    sourceText = e.target.result;
+    renderSource();
+    // Switch to source tab
+    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelector('[data-tab="source"]').classList.add('active');
+    document.getElementById('tab-source').classList.add('active');
+  };
+  reader.readAsText(file);
+}
+
+// ─────────────────────────────────────────────────────
+// RENDER DIAGRAM
+// ─────────────────────────────────────────────────────
+function renderDiagram() {
+  const svg = document.getElementById('circuit-svg');
+  const welcome = document.getElementById('welcome');
+  const legend = document.getElementById('legend');
+
+  welcome.style.display = 'none';
+  svg.style.display = 'block';
+
+  // Clear existing content (keep defs)
+  const defs = svg.querySelector('defs');
+  svg.innerHTML = '';
+  svg.appendChild(defs);
+
+  componentPositions = {};
+  pinWorldPositions = {};
+
+  const parts = diagram.parts || [];
+  const connections = diagram.connections || [];
+
+  // Calculate bounds for viewBox
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  parts.forEach(part => {
+    const def = COMPONENT_REGISTRY[part.type];
+    if (!def) return;
+    const x = part.left || 0;
+    const y = part.top || 0;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + def.width);
+    maxY = Math.max(maxY, y + def.height);
+  });
+
+  // Add padding
+  const pad = 60;
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  const viewW = maxX - minX;
+  const viewH = maxY - minY;
+  svg.setAttribute('viewBox', `${minX} ${minY} ${viewW} ${viewH}`);
+
+  // Render components
+  parts.forEach(part => {
+    const def = COMPONENT_REGISTRY[part.type];
+    if (!def) {
+      // Unknown component — render placeholder
+      renderUnknownComponent(svg, part, minX, minY);
+      return;
+    }
+    const x = part.left || 0;
+    const y = part.top || 0;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'component-group');
+    g.setAttribute('transform', `translate(${x}, ${y})`);
+    g.setAttribute('data-id', part.id);
+
+    def.render.call(def, g, part);
+    svg.appendChild(g);
+
+    componentPositions[part.id] = { x, y, def, part };
+
+    // Compute world pin positions
+    Object.entries(def.pins).forEach(([pinName, pos]) => {
+      pinWorldPositions[`${part.id}:${pinName}`] = { x: x + pos.x, y: y + pos.y };
+    });
+  });
+
+  // Render wires
+  const wireColors = new Set();
+  connections.forEach(conn => {
+    if (!conn || conn.length < 3) return;
+    const [from, to, color] = conn;
+    const fromPos = resolvePinPosition(from);
+    const toPos = resolvePinPosition(to);
+    if (!fromPos || !toPos) return;
+
+    wireColors.add(color);
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const d = routeWire(fromPos, toPos, conn[3] || []);
+    path.setAttribute('d', d);
+    path.setAttribute('stroke', color);
+    path.setAttribute('class', 'wire');
+    path.setAttribute('data-from', from);
+    path.setAttribute('data-to', to);
+
+    // Tooltip
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = `${from} → ${to}`;
+    path.appendChild(title);
+
+    svg.appendChild(path);
+  });
+
+  // Legend
+  if (wireColors.size > 0) {
+    legend.style.display = 'block';
+    legend.innerHTML = '<div style="font-weight:600;margin-bottom:4px;color:#7ec8e3;">Wire Colors</div>' +
+      [...wireColors].map(c => `<div class="legend-item"><div class="legend-dot" style="background:${c}"></div><span>${c}</span></div>`).join('');
+  }
+
+  // Update info panel
+  renderInfo(parts, connections);
+  renderControls(parts);
+  updateBadge();
+}
+
+function renderUnknownComponent(svg, part, minX, minY) {
+  const x = part.left || 0;
+  const y = part.top || 0;
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('class', 'component-group');
+  g.setAttribute('transform', `translate(${x}, ${y})`);
+  g.innerHTML = `
+    <rect width="80" height="50" rx="4" fill="#333" stroke="#666" stroke-width="1" stroke-dasharray="4"/>
+    <text x="40" y="22" text-anchor="middle" font-size="8" fill="#ff9800" font-family="monospace">${part.type}</text>
+    <text x="40" y="35" text-anchor="middle" font-size="7" fill="#888" font-family="monospace">${part.id}</text>
+  `;
+  svg.appendChild(g);
+
+  componentPositions[part.id] = { x, y, def: { width: 80, height: 50, pins: {} }, part };
+}
+
+function resolvePinPosition(pinRef) {
+  // Try direct lookup
+  if (pinWorldPositions[pinRef]) return pinWorldPositions[pinRef];
+
+  // Parse "partId:pinName" — handle numeric pin names
+  const colonIdx = pinRef.indexOf(':');
+  if (colonIdx === -1) return null;
+  const partId = pinRef.substring(0, colonIdx);
+  const pinName = pinRef.substring(colonIdx + 1);
+
+  // Try exact match
+  const key = `${partId}:${pinName}`;
+  if (pinWorldPositions[key]) return pinWorldPositions[key];
+
+  // Arduino convenience: bare numbers are digital pins
+  if (pinWorldPositions[`${partId}:${pinName}`]) return pinWorldPositions[`${partId}:${pinName}`];
+
+  // If component exists but pin doesn't match, place at component center
+  if (componentPositions[partId]) {
+    const comp = componentPositions[partId];
+    return { x: comp.x + comp.def.width / 2, y: comp.y + comp.def.height / 2 };
+  }
+
+  return null;
+}
+
+function routeWire(from, to, hints) {
+  // Simple routing: if hints are provided, attempt orthogonal routing
+  // Otherwise, use a direct path with slight curvature for readability
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+
+  // If mostly horizontal or vertical, use straight line
+  if (Math.abs(dx) < 5 || Math.abs(dy) < 5) {
+    return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+  }
+
+  // Use a rounded elbow (go horizontal first, then vertical)
+  const midX = from.x + dx * 0.5;
+  const r = Math.min(10, Math.abs(dx) * 0.3, Math.abs(dy) * 0.3);
+
+  return `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`;
+}
+
+// ─────────────────────────────────────────────────────
+// INFO PANEL
+// ─────────────────────────────────────────────────────
+function renderInfo(parts, connections) {
+  document.getElementById('infoWelcome').style.display = 'none';
+  const content = document.getElementById('infoContent');
+  content.style.display = 'block';
+
+  let html = '<div class="info-section"><h3>Components (' + parts.length + ')</h3><ul class="parts-list">';
+  parts.forEach(p => {
+    const known = COMPONENT_REGISTRY[p.type] ? '✓' : '?';
+    html += `<li><span>${p.id}</span><span class="type">${p.type.replace('wokwi-','').replace('chip-','')} ${known}</span></li>`;
+  });
+  html += '</ul></div>';
+
+  html += '<div class="info-section"><h3>Connections (' + connections.length + ')</h3><div class="connections-list">';
+  connections.forEach(conn => {
+    if (!conn || conn.length < 3) return;
+    const [from, to, color] = conn;
+    html += `<div class="conn"><span class="dot" style="background:${color}"></span><span>${from} → ${to}</span></div>`;
+  });
+  html += '</div></div>';
+
+  content.innerHTML = html;
+}
+
+// ─────────────────────────────────────────────────────
+// CONTROLS PANEL
+// ─────────────────────────────────────────────────────
+function renderControls(parts) {
+  const container = document.getElementById('controlsContent');
+  let html = '';
+
+  // Find potentiometers → create sliders
+  const pots = parts.filter(p => p.type === 'wokwi-potentiometer');
+  if (pots.length > 0) {
+    html += '<div class="ctrl-group"><h4>Potentiometers</h4>';
+    pots.forEach(p => {
+      html += `<div class="ctrl-row"><label>${p.id}</label><input type="range" min="0" max="1023" value="512" data-pot="${p.id}"><span class="val">512</span></div>`;
+    });
+    html += '</div>';
+  }
+
+  // Find LEDs → show status indicators
+  const leds = parts.filter(p => p.type === 'wokwi-led');
+  if (leds.length > 0) {
+    html += '<div class="ctrl-group"><h4>LEDs</h4>';
+    leds.forEach(p => {
+      const color = (p.attrs && p.attrs.color) || 'red';
+      html += `<div class="ctrl-row"><label>${p.id}</label><span style="color:${color};">●</span><span class="val" data-led="${p.id}">OFF</span></div>`;
+    });
+    html += '</div>';
+  }
+
+  // Find servos → show angle indicator
+  const servos = parts.filter(p => p.type === 'wokwi-servo');
+  if (servos.length > 0) {
+    html += '<div class="ctrl-group"><h4>Servos</h4>';
+    servos.forEach(p => {
+      html += `<div class="ctrl-row"><label>${p.id}</label><input type="range" min="0" max="180" value="90" data-servo="${p.id}"><span class="val">90°</span></div>`;
+    });
+    html += '</div>';
+  }
+
+  // Find L298N / DC motors → show H-bridge controls
+  const motors = parts.filter(p => p.type === 'chip-dc-motor');
+  const bridges = parts.filter(p => p.type === 'chip-l298n');
+  if (bridges.length > 0) {
+    bridges.forEach(bridge => {
+      html += `<div class="ctrl-group"><h4>${bridge.id} (H-Bridge)</h4>`;
+      html += `<div class="ctrl-row"><label>ENA</label><input type="range" min="0" max="255" value="0" data-bridge="${bridge.id}" data-pin="ENA"><span class="val">0</span></div>`;
+      html += `<div class="ctrl-row"><label>IN1</label><input type="checkbox" data-bridge="${bridge.id}" data-pin="IN1"><span class="val">LOW</span></div>`;
+      html += `<div class="ctrl-row"><label>IN2</label><input type="checkbox" data-bridge="${bridge.id}" data-pin="IN2"><span class="val">LOW</span></div>`;
+      html += `<div class="ctrl-row"><label>IN3</label><input type="checkbox" data-bridge="${bridge.id}" data-pin="IN3"><span class="val">LOW</span></div>`;
+      html += `<div class="ctrl-row"><label>IN4</label><input type="checkbox" data-bridge="${bridge.id}" data-pin="IN4"><span class="val">LOW</span></div>`;
+      html += `<div class="ctrl-row"><label>ENB</label><input type="range" min="0" max="255" value="0" data-bridge="${bridge.id}" data-pin="ENB"><span class="val">0</span></div>`;
+      html += '</div>';
+    });
+  }
+
+  if (!html) {
+    html = '<p style="color:#666;font-size:12px;">No interactive components detected in this circuit.</p>';
+  }
+
+  container.innerHTML = html;
+
+  // Attach slider value display handlers + simulation
+  container.querySelectorAll('input[type=range]').forEach(slider => {
+    slider.addEventListener('input', () => {
+      const valSpan = slider.parentElement.querySelector('.val');
+      if (valSpan) valSpan.textContent = slider.value + (slider.dataset.servo !== undefined ? '°' : '');
+      runSimulation();
+    });
+  });
+  container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const valSpan = cb.parentElement.querySelector('.val');
+      if (valSpan) valSpan.textContent = cb.checked ? 'HIGH' : 'LOW';
+      runSimulation();
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// SIMULATION ENGINE
+// Traces signals through connections and updates visuals
+// ─────────────────────────────────────────────────────
+
+let simState = {}; // pin states: { "uno:9": 128, "uno:A0": 512, ... }
+let connectionGraph = {}; // "partId:pin" -> ["partId:pin", ...]
+
+function buildConnectionGraph() {
+  connectionGraph = {};
+  if (!diagram || !diagram.connections) return;
+
+  diagram.connections.forEach(conn => {
+    if (!conn || conn.length < 2) return;
+    const [a, b] = conn;
+    if (!connectionGraph[a]) connectionGraph[a] = [];
+    if (!connectionGraph[b]) connectionGraph[b] = [];
+    connectionGraph[a].push(b);
+    connectionGraph[b].push(a);
+  });
+}
+
+function getConnectedPins(pinRef) {
+  return connectionGraph[pinRef] || [];
+}
+
+// Find what Arduino pin a component pin connects to
+function findArduinoConnection(partId, pinName) {
+  const ref = `${partId}:${pinName}`;
+  const connected = getConnectedPins(ref);
+  for (const c of connected) {
+    if (c.startsWith('uno:')) return c;
+    // Follow through passive components (resistors)
+    const [cPart] = c.split(':');
+    const cDef = componentPositions[cPart];
+    if (cDef && cDef.part.type === 'wokwi-resistor') {
+      // Trace through resistor
+      const otherPin = c.endsWith(':1') ? `${cPart}:2` : `${cPart}:1`;
+      const next = getConnectedPins(otherPin);
+      for (const n of next) {
+        if (n.startsWith('uno:')) return n;
+        // One more hop for LED after resistor
+        const [nPart] = n.split(':');
+        const nDef = componentPositions[nPart];
+        if (nDef && nDef.part.type === 'wokwi-led') return n;
+      }
+    }
+  }
+  return null;
+}
+
+// Core simulation: read inputs, compute Arduino logic, drive outputs
+function runSimulation() {
+  if (!diagram) return;
+  buildConnectionGraph();
+
+  const parts = diagram.parts || [];
+  const connections = diagram.connections || [];
+
+  // Gather input values from controls
+  const pots = parts.filter(p => p.type === 'wokwi-potentiometer');
+  const potValues = {};
+  pots.forEach(p => {
+    const slider = document.querySelector(`[data-pot="${p.id}"]`);
+    potValues[p.id] = slider ? parseInt(slider.value) : 512;
+  });
+
+  // Build Arduino pin state from inputs
+  const arduinoPins = {}; // pinName -> value (0-1023 for analog in, 0-255 for PWM out)
+
+  // Map pots to Arduino analog inputs
+  pots.forEach(pot => {
+    const sigRef = `${pot.id}:SIG`;
+    const connected = getConnectedPins(sigRef);
+    connected.forEach(c => {
+      if (c.startsWith('uno:')) {
+        const pin = c.split(':')[1];
+        arduinoPins[pin] = potValues[pot.id];
+      }
+    });
+  });
+
+  // Simulate Arduino: map analog inputs to PWM outputs (common pattern)
+  // Detect output connections and apply transfer function
+  const analogInputs = Object.entries(arduinoPins).filter(([pin]) => pin.startsWith('A'));
+
+  // For each analog input, find corresponding PWM output via source code pattern
+  // Default: map(input, 0, 1023, 0, 255) for LEDs, map(..., 0, 180) for servos
+  const servos = parts.filter(p => p.type === 'wokwi-servo');
+  const leds = parts.filter(p => p.type === 'wokwi-led');
+  const bridges = parts.filter(p => p.type === 'chip-l298n');
+  const motors = parts.filter(p => p.type === 'chip-dc-motor');
+
+  // Find what outputs exist and their types
+  const outputTargets = []; // { pin, type, partId }
+
+  servos.forEach(s => {
+    const pwmRef = `${s.id}:PWM`;
+    const connected = getConnectedPins(pwmRef);
+    connected.forEach(c => {
+      if (c.startsWith('uno:')) {
+        outputTargets.push({ pin: c.split(':')[1], type: 'servo', partId: s.id });
+      }
+    });
+  });
+
+  leds.forEach(l => {
+    // Trace: uno:pin → resistor → led:A, or uno:pin → led:A
+    const anodeRef = `${l.id}:A`;
+    const connected = getConnectedPins(anodeRef);
+    connected.forEach(c => {
+      if (c.startsWith('uno:')) {
+        outputTargets.push({ pin: c.split(':')[1], type: 'led', partId: l.id });
+      } else {
+        // Might be through a resistor
+        const [cPart] = c.split(':');
+        const cDef = componentPositions[cPart];
+        if (cDef && cDef.part.type === 'wokwi-resistor') {
+          const otherPin = c.endsWith(':1') ? `${cPart}:2` : `${cPart}:1`;
+          getConnectedPins(otherPin).forEach(n => {
+            if (n.startsWith('uno:')) {
+              outputTargets.push({ pin: n.split(':')[1], type: 'led', partId: l.id });
+            }
+          });
+        }
+      }
+    });
+  });
+
+  // Apply transfer functions
+  analogInputs.forEach(([inputPin, inputVal]) => {
+    outputTargets.forEach(target => {
+      let outputVal;
+      if (target.type === 'servo') {
+        outputVal = Math.round(inputVal * 180 / 1023); // map to 0-180
+      } else if (target.type === 'led') {
+        outputVal = Math.round(inputVal * 255 / 1023); // map to 0-255
+      }
+      if (outputVal !== undefined) {
+        arduinoPins[target.pin] = outputVal;
+        updateComponentVisual(target, outputVal, inputVal);
+      }
+    });
+  });
+
+  // H-Bridge simulation
+  bridges.forEach(bridge => {
+    const enaSlider = document.querySelector(`[data-bridge="${bridge.id}"][data-pin="ENA"]`);
+    const enbSlider = document.querySelector(`[data-bridge="${bridge.id}"][data-pin="ENB"]`);
+    const in1Cb = document.querySelector(`[data-bridge="${bridge.id}"][data-pin="IN1"]`);
+    const in2Cb = document.querySelector(`[data-bridge="${bridge.id}"][data-pin="IN2"]`);
+    const in3Cb = document.querySelector(`[data-bridge="${bridge.id}"][data-pin="IN3"]`);
+    const in4Cb = document.querySelector(`[data-bridge="${bridge.id}"][data-pin="IN4"]`);
+
+    if (!enaSlider) return;
+
+    const ena = parseInt(enaSlider.value);
+    const enb = parseInt(enbSlider.value);
+    const in1 = in1Cb && in1Cb.checked;
+    const in2 = in2Cb && in2Cb.checked;
+    const in3 = in3Cb && in3Cb.checked;
+    const in4 = in4Cb && in4Cb.checked;
+
+    // Channel A
+    let dirA = 'STOP', speedA = 0;
+    if (ena > 0) {
+      if (in1 && !in2) { dirA = 'FWD'; speedA = Math.round(ena * 100 / 255); }
+      else if (!in1 && in2) { dirA = 'REV'; speedA = Math.round(ena * 100 / 255); }
+      else if (in1 && in2) { dirA = 'BRAKE'; }
+    }
+
+    // Channel B
+    let dirB = 'STOP', speedB = 0;
+    if (enb > 0) {
+      if (in3 && !in4) { dirB = 'FWD'; speedB = Math.round(enb * 100 / 255); }
+      else if (!in3 && in4) { dirB = 'REV'; speedB = Math.round(enb * 100 / 255); }
+      else if (in3 && in4) { dirB = 'BRAKE'; }
+    }
+
+    // Update motor visuals
+    const motorA = findMotorOnChannel(bridge.id, 'OUT1', 'OUT2');
+    const motorB = findMotorOnChannel(bridge.id, 'OUT3', 'OUT4');
+    if (motorA) updateMotorVisual(motorA, dirA, speedA);
+    if (motorB) updateMotorVisual(motorB, dirB, speedB);
+  });
+
+  updateSerialMonitor(arduinoPins, potValues);
+}
+
+function findMotorOnChannel(bridgeId, out1Name, out2Name) {
+  const out1Ref = `${bridgeId}:${out1Name}`;
+  const connected = getConnectedPins(out1Ref);
+  for (const c of connected) {
+    const [partId] = c.split(':');
+    if (componentPositions[partId] && componentPositions[partId].part.type === 'chip-dc-motor') {
+      return partId;
+    }
+  }
+  return null;
+}
+
+function updateComponentVisual(target, outputVal, inputVal) {
+  const svg = document.getElementById('circuit-svg');
+  const group = svg.querySelector(`[data-id="${target.partId}"]`);
+  if (!group) return;
+
+  if (target.type === 'led') {
+    // Adjust LED opacity based on PWM value
+    const ellipse = group.querySelector('ellipse');
+    if (ellipse) {
+      const brightness = 0.15 + (outputVal / 255) * 0.85;
+      ellipse.setAttribute('opacity', brightness);
+      // Add glow effect
+      if (outputVal > 10) {
+        ellipse.setAttribute('filter', `drop-shadow(0 0 ${Math.round(outputVal/25)}px ${ellipse.getAttribute('fill')})`);
+      } else {
+        ellipse.removeAttribute('filter');
+      }
+    }
+  } else if (target.type === 'servo') {
+    // Rotate the servo arm
+    const line = group.querySelector('line[stroke="#fdd835"]');
+    if (line) {
+      const cx = 65, cy = 17;
+      const angle = (outputVal - 90) * (Math.PI / 180);
+      const len = 9;
+      const x2 = cx + Math.sin(angle) * len;
+      const y2 = cy - Math.cos(angle) * len;
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+    }
+  }
+}
+
+function updateMotorVisual(motorId, direction, speed) {
+  const svg = document.getElementById('circuit-svg');
+  const group = svg.querySelector(`[data-id="${motorId}"]`);
+  if (!group) return;
+
+  const circle = group.querySelector('circle');
+  if (circle) {
+    if (direction === 'FWD') circle.setAttribute('fill', '#66bb6a');
+    else if (direction === 'REV') circle.setAttribute('fill', '#ef5350');
+    else if (direction === 'BRAKE') circle.setAttribute('fill', '#ff9800');
+    else circle.setAttribute('fill', '#ff8f00');
+
+    if (speed > 0) {
+      // Add spinning animation
+      const existing = group.querySelector('animateTransform');
+      if (!existing) {
+        const anim = document.createElementNS('http://www.w3.org/2000/svg', 'animateTransform');
+        anim.setAttribute('attributeName', 'transform');
+        anim.setAttribute('type', 'rotate');
+        anim.setAttribute('from', `0 35 30`);
+        anim.setAttribute('to', direction === 'REV' ? '-360 35 30' : '360 35 30');
+        anim.setAttribute('dur', `${Math.max(0.3, 2 - speed/60)}s`);
+        anim.setAttribute('repeatCount', 'indefinite');
+        anim.setAttribute('additive', 'sum');
+        group.appendChild(anim);
+      }
+    } else {
+      const anim = group.querySelector('animateTransform');
+      if (anim) anim.remove();
+    }
+  }
+}
+
+// Serial monitor output
+let lastSerialMsg = '';
+function updateSerialMonitor(pins, potValues) {
+  // Build a serial-like output based on what's happening
+  const parts = diagram.parts || [];
+  const pots = parts.filter(p => p.type === 'wokwi-potentiometer');
+  const servos = parts.filter(p => p.type === 'wokwi-servo');
+  const leds = parts.filter(p => p.type === 'wokwi-led');
+
+  let msg = '';
+  pots.forEach(p => {
+    const val = potValues[p.id] || 0;
+    if (servos.length > 0) {
+      const angle = Math.round(val * 180 / 1023);
+      msg += `pot = ${val}\t angle = ${angle}\n`;
+    } else if (leds.length > 0) {
+      const pwm = Math.round(val * 255 / 1023);
+      msg += `sensor = ${val}\t output = ${pwm}\n`;
+    } else {
+      msg += `${p.id} = ${val}\n`;
+    }
+  });
+
+  if (msg && msg !== lastSerialMsg) {
+    lastSerialMsg = msg;
+    const el = document.getElementById('serialOutput');
+    if (el) {
+      el.textContent += msg;
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// FIRMWARE INTERPRETER
+// Parses source code and executes Arduino calls step-by-step
+// ─────────────────────────────────────────────────────
+
+let firmwareRunning = false;
+let firmwareAbort = false;
+let firmwarePins = {}; // pin -> { mode, value }
+
+function serialPrint(text, newline) {
+  const el = document.getElementById('serialOutput');
+  if (el) {
+    el.textContent += text + (newline ? '\n' : '');
+    el.scrollTop = el.scrollHeight;
+  }
+}
+
+function setPlayStatus(msg) {
+  const el = document.getElementById('playStatus');
+  if (el) el.textContent = msg;
+}
+
+// Parse source to extract function bodies and constants
+function parseSource(src) {
+  // Strip comments
+  let code = src.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+  // Extract #define constants
+  const defines = {};
+  code.replace(/#define\s+(\w+)\s+(\S+)/g, (_, name, val) => { defines[name] = val; });
+
+  // Extract const int declarations
+  code.replace(/const\s+int\s+(\w+)\s*=\s*([^;]+);/g, (_, name, val) => { defines[name] = val.trim(); });
+
+  // Extract setup() body
+  const setupMatch = code.match(/void\s+setup\s*\(\s*\)\s*\{([\s\S]*?)^\}/m);
+  const setupBody = setupMatch ? setupMatch[1] : '';
+
+  // Extract loop() body
+  const loopMatch = code.match(/void\s+loop\s*\(\s*\)\s*\{([\s\S]*?)^\}/m);
+  const loopBody = loopMatch ? loopMatch[1] : '';
+
+  // Extract helper functions
+  const helpers = {};
+  const funcRegex = /void\s+(\w+)\s*\(([^)]*)\)\s*\{([\s\S]*?)^\}/gm;
+  let match;
+  while ((match = funcRegex.exec(code)) !== null) {
+    const name = match[1];
+    if (name !== 'setup' && name !== 'loop') {
+      const params = match[2].split(',').map(p => p.trim().split(/\s+/).pop());
+      helpers[name] = { params, body: match[3] };
+    }
+  }
+
+  return { defines, setupBody, loopBody, helpers };
+}
+
+// Resolve a value (might be a constant name or numeric literal)
+function resolveValue(val, defines) {
+  val = val.trim();
+  if (defines[val] !== undefined) return resolveValue(defines[val], defines);
+  if (val === 'HIGH' || val === 'true') return 1;
+  if (val === 'LOW' || val === 'false') return 0;
+  if (val === 'OUTPUT') return 'OUTPUT';
+  if (val === 'INPUT') return 'INPUT';
+  const num = parseInt(val);
+  return isNaN(num) ? val : num;
+}
+
+// Execute a block of statements with delays as real async pauses
+async function executeBlock(body, defines, helpers, localVars = {}) {
+  // Tokenize into statements
+  const statements = body.split(';').map(s => s.trim()).filter(s => s.length > 0);
+
+  for (const stmt of statements) {
+    if (firmwareAbort) return;
+
+    // digitalWrite(pin, val)
+    let m = stmt.match(/digitalWrite\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/);
+    if (m) {
+      const pin = resolveValue(m[1], {...defines, ...localVars});
+      const val = resolveValue(m[2], {...defines, ...localVars});
+      firmwarePins[pin] = { mode: 'OUTPUT', value: val ? 1 : 0 };
+      applyPinState();
+      continue;
+    }
+
+    // analogWrite(pin, val)
+    m = stmt.match(/analogWrite\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/);
+    if (m) {
+      const pin = resolveValue(m[1], {...defines, ...localVars});
+      let val = resolveValue(m[2], {...defines, ...localVars});
+      if (typeof val === 'string' && localVars[val] !== undefined) val = localVars[val];
+      firmwarePins[pin] = { mode: 'PWM', value: typeof val === 'number' ? val : 0 };
+      applyPinState();
+      continue;
+    }
+
+    // delay(ms)
+    m = stmt.match(/delay\s*\(\s*(\d+)\s*\)/);
+    if (m) {
+      const ms = parseInt(m[1]);
+      // Scale delays for readability (cap at 2s, scale down long ones)
+      const scaledMs = Math.min(ms, 2000);
+      await sleep(scaledMs);
+      continue;
+    }
+
+    // Serial.println(...)
+    m = stmt.match(/Serial\.println\s*\(\s*(.+)\s*\)/);
+    if (m) {
+      const arg = m[1].trim();
+      if (arg.startsWith('"')) {
+        serialPrint(arg.replace(/^"|"$/g, ''), true);
+      } else {
+        serialPrint(String(resolveValue(arg, {...defines, ...localVars})), true);
+      }
+      continue;
+    }
+
+    // Serial.print(...)
+    m = stmt.match(/Serial\.print\s*\(\s*(.+)\s*\)/);
+    if (m) {
+      const arg = m[1].trim();
+      if (arg.startsWith('"')) {
+        serialPrint(arg.replace(/^"|"$/g, '').replace(/\\t/g, '\t'), false);
+      } else {
+        serialPrint(String(resolveValue(arg, {...defines, ...localVars})), false);
+      }
+      continue;
+    }
+
+    // Function call: name(args)
+    m = stmt.match(/(\w+)\s*\(\s*(.*?)\s*\)/);
+    if (m && helpers[m[1]]) {
+      const func = helpers[m[1]];
+      const args = m[2].split(',').map(a => resolveValue(a.trim(), {...defines, ...localVars}));
+      const newLocals = {};
+      func.params.forEach((p, i) => { newLocals[p] = args[i]; });
+      await executeBlock(func.body, defines, helpers, newLocals);
+      continue;
+    }
+
+    // pinMode — just note it
+    m = stmt.match(/pinMode\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/);
+    if (m) {
+      const pin = resolveValue(m[1], {...defines, ...localVars});
+      firmwarePins[pin] = { mode: resolveValue(m[2], defines), value: 0 };
+      continue;
+    }
+
+    // Serial.begin — ignore
+    if (stmt.includes('Serial.begin')) continue;
+  }
+}
+
+// Apply current pin states to the visual simulation
+function applyPinState() {
+  if (!diagram) return;
+  buildConnectionGraph();
+
+  const parts = diagram.parts || [];
+  const bridges = parts.filter(p => p.type === 'chip-l298n');
+  const leds = parts.filter(p => p.type === 'wokwi-led');
+  const servos = parts.filter(p => p.type === 'wokwi-servo');
+
+  // Update H-bridge controls to match pin state
+  bridges.forEach(bridge => {
+    // Find which Arduino pins connect to bridge inputs
+    const pinMap = {}; // bridge pin name -> arduino pin number
+    ['ENA','IN1','IN2','IN3','IN4','ENB'].forEach(bPin => {
+      const ref = `${bridge.id}:${bPin}`;
+      const connected = getConnectedPins(ref);
+      connected.forEach(c => {
+        if (c.startsWith('uno:')) {
+          const aPin = c.split(':')[1];
+          pinMap[bPin] = aPin;
+        }
+      });
+    });
+
+    // Map firmware pin states to bridge inputs
+    const ena = firmwarePins[resolveValue(pinMap['ENA'] || '0', {})]?.value || 0;
+    const enb = firmwarePins[resolveValue(pinMap['ENB'] || '0', {})]?.value || 0;
+    const in1 = firmwarePins[resolveValue(pinMap['IN1'] || '0', {})]?.value || 0;
+    const in2 = firmwarePins[resolveValue(pinMap['IN2'] || '0', {})]?.value || 0;
+    const in3 = firmwarePins[resolveValue(pinMap['IN3'] || '0', {})]?.value || 0;
+    const in4 = firmwarePins[resolveValue(pinMap['IN4'] || '0', {})]?.value || 0;
+
+    // Compute motor directions
+    let dirA = 'STOP', speedA = 0;
+    if (ena > 0) {
+      if (in1 && !in2) { dirA = 'FWD'; speedA = Math.round(ena * 100 / 255); }
+      else if (!in1 && in2) { dirA = 'REV'; speedA = Math.round(ena * 100 / 255); }
+      else if (in1 && in2) { dirA = 'BRAKE'; }
+    }
+    let dirB = 'STOP', speedB = 0;
+    if (enb > 0) {
+      if (in3 && !in4) { dirB = 'FWD'; speedB = Math.round(enb * 100 / 255); }
+      else if (!in3 && in4) { dirB = 'REV'; speedB = Math.round(enb * 100 / 255); }
+      else if (in3 && in4) { dirB = 'BRAKE'; }
+    }
+
+    const motorA = findMotorOnChannel(bridge.id, 'OUT1', 'OUT2');
+    const motorB = findMotorOnChannel(bridge.id, 'OUT3', 'OUT4');
+    if (motorA) updateMotorVisual(motorA, dirA, speedA);
+    if (motorB) updateMotorVisual(motorB, dirB, speedB);
+
+    // Update wire highlights
+    highlightActiveWires(bridge.id, { ena, enb, in1, in2, in3, in4 });
+  });
+
+  // Update LEDs based on PWM pin state
+  leds.forEach(led => {
+    const anodeRef = `${led.id}:A`;
+    const connected = getConnectedPins(anodeRef);
+    let pwmVal = 0;
+    for (const c of connected) {
+      if (c.startsWith('uno:')) {
+        const pin = resolveValue(c.split(':')[1], {});
+        if (firmwarePins[pin]) pwmVal = firmwarePins[pin].value;
+      } else {
+        // Through resistor
+        const [cPart] = c.split(':');
+        const cDef = componentPositions[cPart];
+        if (cDef && cDef.part.type === 'wokwi-resistor') {
+          const otherPin = c.endsWith(':1') ? `${cPart}:2` : `${cPart}:1`;
+          getConnectedPins(otherPin).forEach(n => {
+            if (n.startsWith('uno:')) {
+              const pin = resolveValue(n.split(':')[1], {});
+              if (firmwarePins[pin]) pwmVal = firmwarePins[pin].value;
+            }
+          });
+        }
+      }
+    }
+    updateComponentVisual({ type: 'led', partId: led.id }, pwmVal, 0);
+  });
+}
+
+function highlightActiveWires(bridgeId, state) {
+  const svg = document.getElementById('circuit-svg');
+  if (!svg) return;
+  svg.querySelectorAll('.wire').forEach(wire => {
+    const from = wire.getAttribute('data-from') || '';
+    const to = wire.getAttribute('data-to') || '';
+    const involves = from.includes(bridgeId) || to.includes(bridgeId) || from.startsWith('uno:') || to.startsWith('uno:');
+    if (involves) {
+      // Check if pin is active
+      const isActive = Object.values(state).some(v => v > 0);
+      wire.style.opacity = isActive ? '1' : '0.5';
+      wire.style.strokeWidth = isActive ? '3.5' : '2.5';
+    }
+  });
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function runFirmware() {
+  if (firmwareRunning) return;
+  if (!sourceText) { setPlayStatus('No source loaded'); return; }
+
+  firmwareRunning = true;
+  firmwareAbort = false;
+  firmwarePins = {};
+
+  const btnPlay = document.getElementById('btnPlay');
+  btnPlay.style.background = '#333';
+  btnPlay.textContent = '⏸ Running...';
+  setPlayStatus('Parsing source...');
+
+  const parsed = parseSource(sourceText);
+  setPlayStatus('Running setup()...');
+
+  // Execute setup
+  await executeBlock(parsed.setupBody, parsed.defines, parsed.helpers);
+
+  // Execute loop (repeat until stopped)
+  setPlayStatus('Running loop()...');
+  while (!firmwareAbort) {
+    await executeBlock(parsed.loopBody, parsed.defines, parsed.helpers);
+    if (firmwareAbort) break;
+    await sleep(100); // Small gap between loop iterations
+  }
+
+  firmwareRunning = false;
+  btnPlay.style.background = '#1b5e20';
+  btnPlay.textContent = '▶ Play';
+  setPlayStatus('Stopped');
+}
+
+function stopFirmware() {
+  firmwareAbort = true;
+  setPlayStatus('Stopping...');
+}
+
+// ─────────────────────────────────────────────────────
+// SOURCE CODE (basic syntax highlighting)
+// ─────────────────────────────────────────────────────
+function renderSource() {
+  const el = document.getElementById('sourceCode');
+  el.innerHTML = highlightCpp(sourceText);
+}
+
+function highlightCpp(code) {
+  // Escape HTML first
+  let html = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // Preprocessor directives
+  html = html.replace(/^(#\w+.*?)$/gm, '<span class="pre">$1</span>');
+
+  // Single-line comments
+  html = html.replace(/(\/\/.*?)$/gm, '<span class="cmt">$1</span>');
+
+  // Multi-line comments
+  html = html.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="cmt">$1</span>');
+
+  // Strings
+  html = html.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="str">$1</span>');
+
+  // Numbers
+  html = html.replace(/\b(\d+\.?\d*[fFuUlL]*)\b/g, '<span class="num">$1</span>');
+
+  // Keywords
+  const kws = ['void','int','long','float','double','char','bool','const','unsigned','signed','static','return','if','else','for','while','do','switch','case','break','continue','true','false','HIGH','LOW','OUTPUT','INPUT','INPUT_PULLUP','define','include','nullptr'];
+  const kwRe = new RegExp('\\b(' + kws.join('|') + ')\\b', 'g');
+  html = html.replace(kwRe, '<span class="kw">$1</span>');
+
+  // Types
+  const types = ['String','Servo','Serial','byte','uint8_t','uint16_t','uint32_t','int8_t','int16_t','int32_t','size_t'];
+  const typeRe = new RegExp('\\b(' + types.join('|') + ')\\b', 'g');
+  html = html.replace(typeRe, '<span class="type">$1</span>');
+
+  // Function calls
+  html = html.replace(/\b([a-zA-Z_]\w*)\s*\(/g, '<span class="fn">$1</span>(');
+
+  return html;
+}
+
+// ─────────────────────────────────────────────────────
+// BADGE / TITLE
+// ─────────────────────────────────────────────────────
+function updateBadge() {
+  const parts = diagram.parts || [];
+  const badge = document.getElementById('badge');
+  const title = document.getElementById('title');
+
+  const partCount = parts.length;
+  const connCount = (diagram.connections || []).length;
+  badge.textContent = `${partCount} parts · ${connCount} wires`;
+
+  // Try to derive a useful title
+  const author = diagram.author || '';
+  title.textContent = author ? `Circuit — ${author}` : 'Circuit Diagram Viewer';
+}
+
+// ─────────────────────────────────────────────────────
+// INIT — Auto-load from preloaded data (set by view-circuit CLI)
+// ─────────────────────────────────────────────────────
+(function autoLoad() {
+  const data = window.__PRELOADED;
+  if (!data) return;
+
+  if (data.diagram) {
+    try {
+      diagram = data.diagram;
+      renderDiagram();
+    } catch (e) {
+      console.error('Failed to render preloaded diagram:', e);
+    }
+  }
+
+  if (data.source) {
+    try {
+      sourceText = data.source;
+      renderSource();
+      if (data.sourceName) {
+        const badge = document.getElementById('badge');
+        if (badge) badge.textContent += ` · ${data.sourceName}`;
+      }
+    } catch (e) {
+      console.error('Failed to render preloaded source:', e);
+    }
+  }
+})();
+
+// Clear serial button
+document.getElementById('btnClearSerial').addEventListener('click', () => {
+  document.getElementById('serialOutput').textContent = '';
+  lastSerialMsg = '';
+});
+
+// Play/Stop buttons
+document.getElementById('btnPlay').addEventListener('click', runFirmware);
+document.getElementById('btnStop').addEventListener('click', stopFirmware);
+</script>
+</body>
+</html>

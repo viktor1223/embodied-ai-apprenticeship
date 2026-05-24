@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "author": "Viktor Ciroski",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-arduino-uno",
+      "id": "uno",
+      "top": 200,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "chip-l298n",
+      "id": "l298n",
+      "top": 50,
+      "left": 300,
+      "attrs": { "Vs": "12" }
+    },
+    {
+      "type": "chip-dc-motor",
+      "id": "motorA",
+      "top": -80,
+      "left": 220,
+      "attrs": { "ratedV": "12" }
+    },
+    {
+      "type": "chip-dc-motor",
+      "id": "motorB",
+      "top": -80,
+      "left": 400,
+      "attrs": { "ratedV": "12" }
+    }
+  ],
+  "connections": [
+    ["uno:9", "l298n:ENA", "purple", ["h0", "v-60"]],
+    ["uno:8", "l298n:IN1", "blue", ["h0", "v-60"]],
+    ["uno:7", "l298n:IN2", "cyan", ["h0", "v-60"]],
+    ["uno:6", "l298n:IN3", "green", ["h0", "v-60"]],
+    ["uno:5", "l298n:IN4", "darkgreen", ["h0", "v-60"]],
+    ["uno:10", "l298n:ENB", "orange", ["h0", "v-60"]],
+    ["l298n:OUT1", "motorA:TERM1", "red", ["v-40"]],
+    ["l298n:OUT2", "motorA:TERM2", "brown", ["v-40"]],
+    ["l298n:OUT3", "motorB:TERM1", "red", ["v-40"]],
+    ["l298n:OUT4", "motorB:TERM2", "brown", ["v-40"]],
+    ["uno:GND.1", "l298n:GND", "black", ["h0", "v-60"]],
+    ["uno:5V", "l298n:5V", "red", ["h0", "v-60"]],
+    ["l298n:GND2", "l298n:GND", "black", ["v20", "h-20"]]
+  ],
+  "serialMonitor": { "display": "auto" }
+}

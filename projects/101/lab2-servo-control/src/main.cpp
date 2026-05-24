@@ -15,14 +15,21 @@ void setup() {
 }
 
 void loop() {
-  potValue = analogRead(potPin);           // Read pot: 0–1023
-  angle = map(potValue, 0, 1023, 0, 180);  // Convert to servo angle: 0–180
-  myservo.write(angle);                     // Send angle to servo
+  // Average multiple reads — 850k pot has high impedance, single reads are noisy
+  long sum = 0;
+  for (int i = 0; i < 10; i++) {
+    sum += analogRead(potPin);
+    delay(2);
+  }
+  potValue = sum / 10;
+
+  angle = map(potValue, 0, 1023, 0, 180);
+  myservo.write(angle);
 
   Serial.print("pot = ");
   Serial.print(potValue);
   Serial.print("\t angle = ");
   Serial.println(angle);
 
-  delay(15);  // Give servo time to move
+  delay(15);
 }

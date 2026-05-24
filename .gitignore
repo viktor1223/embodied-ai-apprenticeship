@@ -1,1 +1,10 @@
 .pio
+
+# Video/media files (keep local, too large for git)
+*.mp4
+*.mov
+*.MOV
+*.avi
+
+# Private career strategy docs (not for public repo)
+.private/

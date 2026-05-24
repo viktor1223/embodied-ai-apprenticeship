@@ -120,6 +120,12 @@ By the end of this course, physical systems stop feeling magical.
 - Bidirectional motor control
 - Power constraints and separate power rails
 
+**Reference links:**
+- [Arduino: DC Motor Control with L298N](https://docs.arduino.cc/learn/electronics/stepper-motors/)
+- [L298N H-Bridge Motor Driver Datasheet](https://www.st.com/resource/en/datasheet/l298.pdf)
+- [TB6612FNG Hookup Guide (SparkFun)](https://learn.sparkfun.com/tutorials/tb6612fng-hookup-guide)
+- [H-Bridge Theory of Operation](https://www.modularcircuits.com/blog/articles/h-bridge-secrets/h-bridges-the-basics/)
+
 ---
 
 ### Lab 4: Build Your Own "Servo"
@@ -130,6 +136,12 @@ By the end of this course, physical systems stop feeling magical.
 - Feedback concepts (reading position, computing error)
 - Closed-loop thinking
 - Motor + encoder integration
+
+**Reference links:**
+- [Arduino PID Library](https://playground.arduino.cc/Code/PIDLibrary/)
+- [Rotary Encoder Basics (SparkFun)](https://learn.sparkfun.com/tutorials/rotary-encoder)
+- [PID Control — A Brief Introduction](https://www.arrow.com/en/research-and-events/articles/pid-controller-basics-and-tutorial-pid-implementation-in-arduino)
+- [Building a Servo from a DC Motor (YouTube — James Bruton)](https://www.youtube.com/watch?v=dTGITLnYAY0)
 
 ---
 
