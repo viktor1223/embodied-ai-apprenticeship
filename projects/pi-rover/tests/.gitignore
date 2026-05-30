@@ -1,0 +1,6 @@
+# Test outputs
+test_frame.jpg
+test_audio.wav
+
+# Secrets
+.env

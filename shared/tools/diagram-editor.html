@@ -52,6 +52,8 @@ header h1 { font-size: 14px; font-weight: 600; color: #7ec8e3; }
 .pin-circle { fill: #fdd835; r: 4; cursor: crosshair; transition: r 0.1s, fill 0.1s; }
 .pin-circle:hover { r: 6; fill: #fff; }
 .pin-circle.connected { fill: #66bb6a; }
+.pin-label { opacity: 0.85; transition: opacity 0.15s; }
+.component-group:hover .pin-label { opacity: 1; fill: #fff; }
 
 /* Wires */
 .wire { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; cursor: pointer; }
@@ -89,6 +91,26 @@ header h1 { font-size: 14px; font-weight: 600; color: #7ec8e3; }
 .color-swatch { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s, transform 0.1s; }
 .color-swatch:hover { transform: scale(1.2); }
 .color-swatch.active { border-color: #fff; }
+
+/* ─── Simulation Panel ─── */
+.sim-panel { display: none; height: 300px; background: #12122a; border-top: 2px solid #0f3460; flex-shrink: 0; flex-direction: row; }
+.sim-panel.visible { display: flex; }
+.sim-code-area { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #0f3460; }
+.sim-code-area h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #7ec8e3; padding: 8px 12px 4px; flex-shrink: 0; }
+.sim-code-area textarea { flex: 1; background: #0a0a1a; color: #e0e0e0; border: none; padding: 10px 14px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.5; resize: none; outline: none; tab-size: 2; }
+.sim-serial { width: 280px; display: flex; flex-direction: column; }
+.sim-serial h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #7ec8e3; padding: 8px 12px 4px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
+.sim-serial-output { flex: 1; background: #0a0a0a; color: #4caf50; font-family: monospace; font-size: 11px; padding: 8px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+.sim-io { width: 240px; display: flex; flex-direction: column; border-left: 1px solid #0f3460; }
+.sim-io h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #7ec8e3; padding: 8px 12px 4px; flex-shrink: 0; }
+.sim-controls-panel { flex: 1; overflow-y: auto; padding: 4px 10px; font-size: 11px; }
+.sim-controls-panel label { display: block; color: #aaa; margin-top: 6px; font-size: 10px; text-transform: uppercase; }
+.sim-controls-panel input[type=range] { width: 100%; margin: 2px 0; accent-color: #7ec8e3; }
+.sim-controls-panel .ctrl-val { color: #7ec8e3; font-family: monospace; font-size: 11px; }
+.sim-controls-panel .no-controls { color: #555; font-style: italic; padding: 8px 0; }
+.sim-controls { display: flex; gap: 6px; align-items: center; padding: 4px 12px; background: #0f1a2e; border-bottom: 1px solid #0f3460; flex-shrink: 0; }
+.sim-controls .toolbar-btn.running { background: #b71c1c; border-color: #e53935; color: #ffcdd2; }
+.sim-status { font-size: 10px; color: #666; margin-left: auto; }
 </style>
 </head>
 <body>
@@ -107,6 +129,8 @@ header h1 { font-size: 14px; font-weight: 600; color: #7ec8e3; }
   <button class="toolbar-btn" id="btnZoomIn" title="Zoom in">+</button>
   <button class="toolbar-btn" id="btnZoomOut" title="Zoom out">−</button>
   <button class="toolbar-btn" id="btnFit" title="Fit to view">⊡ Fit</button>
+  <div class="toolbar-sep"></div>
+  <button class="toolbar-btn" id="btnSimToggle" title="Toggle Simulator Panel">▶ Simulate</button>
   <span class="badge" id="badge">Untitled</span>
   <input type="file" id="fileInput" accept=".json" hidden>
 </header>
@@ -151,6 +175,40 @@ header h1 { font-size: 14px; font-weight: 600; color: #7ec8e3; }
   <span id="statusParts">0 parts</span>
   <span id="statusWires">0 wires</span>
   <span id="statusMode">Ready</span>
+</div>
+
+<!-- Simulation Panel -->
+<div class="sim-panel" id="simPanel">
+  <div class="sim-code-area">
+    <div class="sim-controls">
+      <button class="toolbar-btn primary" id="btnSimRun" title="Run simulation">▶ Run</button>
+      <button class="toolbar-btn danger" id="btnSimStop" title="Stop simulation" disabled>■ Stop</button>
+      <button class="toolbar-btn" id="btnSimReset" title="Reset simulation">↺ Reset</button>
+      <span class="sim-status" id="simStatus">Stopped</span>
+    </div>
+    <h3>Arduino Code</h3>
+    <textarea id="simCode" spellcheck="false" placeholder="// Paste or write your Arduino sketch here...
+void setup() {
+  pinMode(13, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  digitalWrite(13, HIGH);
+  delay(1000);
+  digitalWrite(13, LOW);
+  delay(1000);
+  Serial.println(&quot;blink!&quot;);
+}"></textarea>
+  </div>
+  <div class="sim-io">
+    <h3>Circuit Controls</h3>
+    <div id="simControls" class="sim-controls-panel"></div>
+  </div>
+  <div class="sim-serial">
+    <h3>Serial Monitor <button class="toolbar-btn" id="btnSerialClear" style="font-size:9px;padding:2px 6px;">Clear</button></h3>
+    <div class="sim-serial-output" id="serialOutput"></div>
+  </div>
 </div>
 
 <!-- Context Menu -->
@@ -203,8 +261,11 @@ const COMPONENTS = {
       const color = (part.attrs && part.attrs.color) || 'red';
       const colorMap = { red:'#f44336', green:'#4caf50', blue:'#2196f3', yellow:'#ffeb3b', white:'#fff', orange:'#ff9800' };
       const fill = colorMap[color] || color;
+      const brightness = part._simBrightness || 0;
+      const glow = brightness > 0 ? `filter: drop-shadow(0 0 ${6 + brightness * 10}px ${fill});` : '';
+      const opacity = 0.3 + brightness * 0.7;
       g.innerHTML = `
-        <ellipse cx="20" cy="35" rx="14" ry="18" fill="${fill}" opacity="0.85" stroke="${fill}" stroke-width="1"/>
+        <ellipse cx="20" cy="35" rx="14" ry="18" fill="${fill}" opacity="${opacity}" stroke="${fill}" stroke-width="1" style="${glow}"/>
         <rect x="12" y="8" width="4" height="20" fill="#aaa" rx="1"/>
         <rect x="22" y="5" width="4" height="23" fill="#aaa" rx="1"/>
         <text x="20" y="58" text-anchor="middle" font-size="8" fill="#aaa">LED</text>
@@ -249,11 +310,16 @@ const COMPONENTS = {
     pins: { 'GND': {x:20,y:50}, 'V+': {x:40,y:50}, 'PWM': {x:60,y:50} },
     attrs: {},
     render(g, part) {
+      const angle = part._simAngle !== undefined ? part._simAngle : 90;
+      const rad = (angle - 90) * Math.PI / 180;
+      const armX = 65 + Math.sin(rad) * 9;
+      const armY = 17 - Math.cos(rad) * 9;
       g.innerHTML = `
         <rect x="0" y="0" width="80" height="35" rx="4" fill="#1565c0" stroke="#0d47a1" stroke-width="1.5"/>
         <circle cx="65" cy="17" r="10" fill="#333" stroke="#555" stroke-width="1.5"/>
-        <line x1="65" y1="17" x2="65" y2="8" stroke="#fdd835" stroke-width="2" stroke-linecap="round"/>
+        <line x1="65" y1="17" x2="${armX}" y2="${armY}" stroke="#fdd835" stroke-width="2" stroke-linecap="round"/>
         <text x="28" y="20" font-size="9" fill="#fff" font-weight="bold">SERVO</text>
+        <text x="65" y="32" text-anchor="middle" font-size="7" fill="#aaa">${angle}°</text>
       `;
     }
   },
@@ -290,11 +356,17 @@ const COMPONENTS = {
     pins: { 'TERM1': {x:15,y:70}, 'TERM2': {x:55,y:70} },
     attrs: { ratedV: '6' },
     render(g, part) {
+      const dir = part._simDirection || 'STOP';
+      const speed = part._simSpeed || 0;
+      const spinning = dir !== 'STOP' && speed > 0;
+      const arrow = dir === 'CW' ? '↻' : dir === 'CCW' ? '↺' : '';
+      const glow = spinning ? `filter: drop-shadow(0 0 4px #ff8f00);` : '';
       g.innerHTML = `
-        <circle cx="35" cy="30" r="28" fill="#ff8f00" stroke="#e65100" stroke-width="2"/>
+        <circle cx="35" cy="30" r="28" fill="#ff8f00" stroke="#e65100" stroke-width="2" style="${glow}"/>
         <rect x="58" y="22" width="15" height="12" rx="2" fill="#757575"/>
         <text x="35" y="27" text-anchor="middle" font-size="9" font-weight="bold" fill="#333">DC</text>
         <text x="35" y="38" text-anchor="middle" font-size="7" fill="#555">MOTOR</text>
+        ${spinning ? `<text x="35" y="55" text-anchor="middle" font-size="14" fill="#fff">${arrow}</text>` : ''}
       `;
     }
   },
@@ -429,6 +501,7 @@ function init() {
   setupCanvasEvents();
   setupToolbarEvents();
   setupKeyboardShortcuts();
+  initSimPanel();
   updateStatus();
   fitView();
 }
@@ -818,7 +891,15 @@ function drawWirePreview(from, to) {
     overlay.appendChild(preview);
   }
   preview.setAttribute('stroke', state.wireColor);
-  preview.setAttribute('d', `M ${from.x} ${from.y} L ${to.x} ${to.y}`);
+  // Get source exit stub if available
+  let fromExit = null;
+  if (state.drawingWire) {
+    const srcRef = state.drawingWire.from;
+    const srcPartId = srcRef.split(':')[0];
+    const srcPinName = srcRef.split(':')[1];
+    fromExit = getPinExit(srcPartId, srcPinName);
+  }
+  preview.setAttribute('d', routeWire(from, to, [null, null], fromExit, null));
 }
 
 function removeWirePreview() {
@@ -886,7 +967,7 @@ function renderComponents() {
     // Render component body
     def.render(g, part);
 
-    // Render pins
+    // Render pins with labels
     Object.entries(def.pins).forEach(([pinName, pos]) => {
       const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       circle.setAttribute('cx', pos.x);
@@ -906,12 +987,66 @@ function renderComponents() {
       circle.appendChild(title);
 
       g.appendChild(circle);
+
+      // Pin label
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('class', 'pin-label');
+      label.setAttribute('font-size', '7');
+      label.setAttribute('font-family', 'monospace');
+      label.setAttribute('fill', '#aaa');
+      label.setAttribute('pointer-events', 'none');
+
+      // Position label based on pin location relative to component center
+      const centerX = def.width / 2;
+      const centerY = def.height / 2;
+      if (pos.x <= 0) {
+        // Pin on left edge → label to the right of pin
+        label.setAttribute('x', pos.x + 7);
+        label.setAttribute('y', pos.y + 3);
+        label.setAttribute('text-anchor', 'start');
+      } else if (pos.x >= def.width) {
+        // Pin on right edge → label to the left of pin
+        label.setAttribute('x', pos.x - 7);
+        label.setAttribute('y', pos.y + 3);
+        label.setAttribute('text-anchor', 'end');
+      } else if (pos.y <= 0) {
+        // Pin on top → label below pin
+        label.setAttribute('x', pos.x);
+        label.setAttribute('y', pos.y + 12);
+        label.setAttribute('text-anchor', 'middle');
+      } else if (pos.y >= def.height) {
+        // Pin on bottom → label above pin
+        label.setAttribute('x', pos.x);
+        label.setAttribute('y', pos.y - 6);
+        label.setAttribute('text-anchor', 'middle');
+      } else {
+        // Interior pin → label to the right
+        label.setAttribute('x', pos.x + 7);
+        label.setAttribute('y', pos.y + 3);
+        label.setAttribute('text-anchor', 'start');
+      }
+      label.textContent = pinName;
+      g.appendChild(label);
     });
 
     // Restore selection
     if (state.selectedType === 'component' && state.selectedId === part.id) {
       g.classList.add('selected');
     }
+
+    // Component ID label below
+    const idLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    idLabel.setAttribute('x', def.width / 2);
+    idLabel.setAttribute('y', def.height + 14);
+    idLabel.setAttribute('text-anchor', 'middle');
+    idLabel.setAttribute('font-size', '9');
+    idLabel.setAttribute('font-family', 'monospace');
+    idLabel.setAttribute('font-weight', 'bold');
+    idLabel.setAttribute('fill', '#7ec8e3');
+    idLabel.setAttribute('pointer-events', 'none');
+    idLabel.setAttribute('class', 'component-id-label');
+    idLabel.textContent = part.id;
+    g.appendChild(idLabel);
 
     layer.appendChild(g);
   });
@@ -921,14 +1056,43 @@ function renderWires() {
   const layer = document.getElementById('wiresLayer');
   layer.innerHTML = '';
 
+  // First pass: compute all wire segments for crossing detection
+  const wireSegments = []; // Array of arrays of {x1,y1,x2,y2} per wire
+
+  state.connections.forEach((conn, idx) => {
+    const [fromRef, toRef, color] = conn;
+    const fromPos = getPinWorldPositionFromRef(fromRef);
+    const toPos = getPinWorldPositionFromRef(toRef);
+    if (!fromPos || !toPos) { wireSegments.push([]); return; }
+
+    const fromPartId = fromRef.substring(0, fromRef.indexOf(':'));
+    const fromPinName = fromRef.substring(fromRef.indexOf(':') + 1);
+    const toPartId = toRef.substring(0, toRef.indexOf(':'));
+    const toPinName = toRef.substring(toRef.indexOf(':') + 1);
+
+    const fromExit = getPinExit(fromPartId, fromPinName);
+    const toExit = getPinExit(toPartId, toPinName);
+
+    const d = routeWire(fromPos, toPos, [fromPartId, toPartId], fromExit, toExit);
+
+    // Parse path into segments
+    const segs = parsePathToSegments(d);
+    wireSegments.push(segs);
+  });
+
+  // Second pass: render with crossing hops
   state.connections.forEach((conn, idx) => {
     const [fromRef, toRef, color] = conn;
     const fromPos = getPinWorldPositionFromRef(fromRef);
     const toPos = getPinWorldPositionFromRef(toRef);
     if (!fromPos || !toPos) return;
 
+    // Find crossings with all other wires
+    const crossings = findCrossings(wireSegments[idx], wireSegments, idx);
+    const d = buildPathWithHops(wireSegments[idx], crossings);
+
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', routeWire(fromPos, toPos));
+    path.setAttribute('d', d);
     path.setAttribute('stroke', color || 'green');
     path.setAttribute('class', 'wire');
     path.dataset.index = idx;
@@ -945,17 +1109,261 @@ function renderWires() {
   });
 }
 
-function routeWire(from, to) {
+// Parse an SVG path "M x y L x y L x y..." into line segments
+function parsePathToSegments(d) {
+  const segs = [];
+  const parts = d.match(/[ML]\s*[-\d.]+\s+[-\d.]+/g);
+  if (!parts || parts.length < 2) return segs;
+  const points = parts.map(p => {
+    const nums = p.match(/[-\d.]+/g);
+    return { x: parseFloat(nums[0]), y: parseFloat(nums[1]) };
+  });
+  for (let i = 0; i < points.length - 1; i++) {
+    segs.push({ x1: points[i].x, y1: points[i].y, x2: points[i+1].x, y2: points[i+1].y });
+  }
+  return segs;
+}
+
+// Find where segments of wire `idx` cross segments of other wires
+function findCrossings(mySegs, allWireSegs, myIdx) {
+  const crossings = []; // {segIdx, t, point} - which segment and where along it
+  for (let i = 0; i < mySegs.length; i++) {
+    const s = mySegs[i];
+    for (let j = 0; j < allWireSegs.length; j++) {
+      if (j === myIdx) continue;
+      for (const other of allWireSegs[j]) {
+        const pt = segmentIntersection(s, other);
+        if (pt) {
+          // Calculate t (0-1) along my segment
+          const len = Math.hypot(s.x2 - s.x1, s.y2 - s.y1);
+          const dist = Math.hypot(pt.x - s.x1, pt.y - s.y1);
+          const t = len > 0 ? dist / len : 0;
+          if (t > 0.02 && t < 0.98) { // Skip crossings at endpoints
+            crossings.push({ segIdx: i, t, point: pt });
+          }
+        }
+      }
+    }
+  }
+  // Sort by segment index then t
+  crossings.sort((a, b) => a.segIdx - b.segIdx || a.t - b.t);
+  return crossings;
+}
+
+// Find intersection of two orthogonal line segments
+function segmentIntersection(a, b) {
+  const aHoriz = Math.abs(a.y1 - a.y2) < 1;
+  const bHoriz = Math.abs(b.y1 - b.y2) < 1;
+
+  // Only detect crossings between perpendicular segments
+  if (aHoriz === bHoriz) return null;
+
+  let hSeg, vSeg;
+  if (aHoriz) { hSeg = a; vSeg = b; }
+  else { hSeg = b; vSeg = a; }
+
+  const hMinX = Math.min(hSeg.x1, hSeg.x2);
+  const hMaxX = Math.max(hSeg.x1, hSeg.x2);
+  const vMinY = Math.min(vSeg.y1, vSeg.y2);
+  const vMaxY = Math.max(vSeg.y1, vSeg.y2);
+
+  const ix = vSeg.x1; // vertical segment's x
+  const iy = hSeg.y1; // horizontal segment's y
+
+  if (ix > hMinX + 1 && ix < hMaxX - 1 && iy > vMinY + 1 && iy < vMaxY - 1) {
+    return { x: ix, y: iy };
+  }
+  return null;
+}
+
+// Build SVG path with small arc hops at crossing points
+function buildPathWithHops(segs, crossings) {
+  if (!segs.length) return '';
+  if (!crossings.length) {
+    // No crossings, simple path
+    let d = `M ${segs[0].x1} ${segs[0].y1}`;
+    for (const s of segs) d += ` L ${s.x2} ${s.y2}`;
+    return d;
+  }
+
+  const hopRadius = 6;
+  let d = `M ${segs[0].x1} ${segs[0].y1}`;
+
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    const segCrossings = crossings.filter(c => c.segIdx === i);
+
+    if (segCrossings.length === 0) {
+      d += ` L ${s.x2} ${s.y2}`;
+    } else {
+      // Draw segment with hops at each crossing
+      const isHoriz = Math.abs(s.y1 - s.y2) < 1;
+      const dirX = s.x2 - s.x1;
+      const dirY = s.y2 - s.y1;
+      const len = Math.hypot(dirX, dirY);
+      const ux = dirX / len; // unit direction
+      const uy = dirY / len;
+
+      let prevT = 0;
+      for (const c of segCrossings) {
+        // Draw line up to just before the crossing
+        const beforeX = c.point.x - ux * hopRadius;
+        const beforeY = c.point.y - uy * hopRadius;
+        const afterX = c.point.x + ux * hopRadius;
+        const afterY = c.point.y + uy * hopRadius;
+
+        d += ` L ${beforeX} ${beforeY}`;
+        // Draw the hop arc (semicircle perpendicular to wire direction)
+        // For horizontal wire: arc goes up; for vertical wire: arc goes right
+        if (isHoriz) {
+          d += ` A ${hopRadius} ${hopRadius} 0 0 1 ${afterX} ${afterY}`;
+        } else {
+          d += ` A ${hopRadius} ${hopRadius} 0 0 1 ${afterX} ${afterY}`;
+        }
+      }
+      d += ` L ${s.x2} ${s.y2}`;
+    }
+  }
+  return d;
+}
+
+// Get bounding boxes of all components with padding for wire clearance
+function getComponentBounds(padding = 12) {
+  return state.parts.map(part => {
+    const def = COMPONENTS[part.type];
+    if (!def) return null;
+    return {
+      x1: part.left - padding,
+      y1: part.top - padding,
+      x2: part.left + def.width + padding,
+      y2: part.top + def.height + padding,
+      id: part.id
+    };
+  }).filter(Boolean);
+}
+
+// Check if a horizontal segment (y fixed, from x1 to x2) intersects any component box
+function hSegIntersectsBox(y, x1, x2, box) {
+  const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+  return y > box.y1 && y < box.y2 && maxX > box.x1 && minX < box.x2;
+}
+
+// Check if a vertical segment (x fixed, from y1 to y2) intersects any component box
+function vSegIntersectsBox(x, y1, y2, box) {
+  const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+  return x > box.x1 && x < box.x2 && maxY > box.y1 && minY < box.y2;
+}
+
+// Determine which edge a pin is on and return exit direction + stub point
+function getPinExit(partId, pinName, stubLen = 24) {
+  const part = state.parts.find(p => p.id === partId);
+  if (!part) return null;
+  const def = COMPONENTS[part.type];
+  if (!def || !def.pins[pinName]) return null;
+  const pin = def.pins[pinName];
+  const worldX = part.left + pin.x;
+  const worldY = part.top + pin.y;
+
+  // Determine edge
+  if (pin.x <= 2) {
+    // Left edge → exit left
+    return { x: worldX - stubLen, y: worldY, dir: 'left' };
+  } else if (pin.x >= def.width - 2) {
+    // Right edge → exit right
+    return { x: worldX + stubLen, y: worldY, dir: 'right' };
+  } else if (pin.y <= 2) {
+    // Top edge → exit up
+    return { x: worldX, y: worldY - stubLen, dir: 'up' };
+  } else if (pin.y >= def.height - 2) {
+    // Bottom edge → exit down
+    return { x: worldX, y: worldY + stubLen, dir: 'down' };
+  }
+  // Interior pin → exit right by default
+  return { x: worldX + stubLen, y: worldY, dir: 'right' };
+}
+
+function routeWire(from, to, excludePartIds, fromExit, toExit) {
+  // If we have both exit stubs: from → fromExit (stub) → core route → toExit (stub) → to
+  if (fromExit && toExit) {
+    const corePath = routeCore(fromExit, toExit, excludePartIds);
+    return `M ${from.x} ${from.y} L ${fromExit.x} ${fromExit.y} ${corePath} L ${to.x} ${to.y}`;
+  }
+  // Only source exit (preview mode): from → fromExit → core route → to
+  if (fromExit && !toExit) {
+    const corePath = routeCore(fromExit, to, excludePartIds);
+    return `M ${from.x} ${from.y} L ${fromExit.x} ${fromExit.y} ${corePath}`;
+  }
+  // No stubs at all: simple core route
+  const corePath = routeCore(from, to, excludePartIds);
+  return `M ${from.x} ${from.y} ${corePath}`;
+}
+
+// Core routing between two clear-of-component points (the stub endpoints)
+function routeCore(from, to, excludePartIds) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
 
-  if (Math.abs(dx) < 5 || Math.abs(dy) < 5) {
-    return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+  // Straight line if nearly aligned on one axis
+  if (Math.abs(dx) < 5) return `L ${to.x} ${to.y}`;
+  if (Math.abs(dy) < 5) return `L ${to.x} ${to.y}`;
+
+  // Check all components (no exclusions — stubs already cleared us from source/dest)
+  const bounds = getComponentBounds(14);
+
+  // Helper: check if a Z-route is blocked
+  function zBlocked(mX) {
+    return bounds.some(b => hSegIntersectsBox(from.y, from.x, mX, b)) ||
+           bounds.some(b => vSegIntersectsBox(mX, from.y, to.y, b)) ||
+           bounds.some(b => hSegIntersectsBox(to.y, mX, to.x, b));
   }
 
-  // Orthogonal routing: go out from pin, then route
+  // Try simple Z-route at midpoint
   const midX = from.x + dx * 0.5;
-  return `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`;
+  if (!zBlocked(midX)) {
+    return `L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`;
+  }
+
+  // Try L-route: vertical first, then horizontal
+  const lBlocked = bounds.some(b => vSegIntersectsBox(from.x, from.y, to.y, b)) ||
+                   bounds.some(b => hSegIntersectsBox(to.y, from.x, to.x, b));
+  if (!lBlocked) {
+    return `L ${from.x} ${to.y} L ${to.x} ${to.y}`;
+  }
+
+  // Try reverse L-route: horizontal first, then vertical
+  const l2Blocked = bounds.some(b => hSegIntersectsBox(from.y, from.x, to.x, b)) ||
+                    bounds.some(b => vSegIntersectsBox(to.x, from.y, to.y, b));
+  if (!l2Blocked) {
+    return `L ${to.x} ${from.y} L ${to.x} ${to.y}`;
+  }
+
+  // Try offset Z-routes
+  for (let offset = 20; offset < 500; offset += 20) {
+    for (const sign of [1, -1]) {
+      const tryX = midX + sign * offset;
+      if (!zBlocked(tryX)) {
+        return `L ${tryX} ${from.y} L ${tryX} ${to.y} L ${to.x} ${to.y}`;
+      }
+    }
+  }
+
+  // Try U-shaped detour routing above or below
+  const midY = from.y + dy * 0.5;
+  function uBlocked(detourY) {
+    return bounds.some(b => vSegIntersectsBox(from.x, from.y, detourY, b)) ||
+           bounds.some(b => hSegIntersectsBox(detourY, from.x, to.x, b)) ||
+           bounds.some(b => vSegIntersectsBox(to.x, detourY, to.y, b));
+  }
+
+  for (const yOff of [-40, 40, -80, 80, -140, 140, -200, 200, -300, 300]) {
+    const detourY = midY + yOff;
+    if (!uBlocked(detourY)) {
+      return `L ${from.x} ${detourY} L ${to.x} ${detourY} L ${to.x} ${to.y}`;
+    }
+  }
+
+  // Fallback: simple Z-route (best effort)
+  return `L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`;
 }
 
 function getPinWorldPosition(partId, pinName) {
@@ -1321,18 +1729,703 @@ function setStatus(msg) {
 }
 
 // ═══════════════════════════════════════════════════════
+// SIMULATION ENGINE
+// ═══════════════════════════════════════════════════════
+
+const sim = {
+  running: false,
+  abort: false,
+  pins: {},       // pin -> { mode, value }
+  servos: {},     // pin -> angle
+  connectionGraph: {},
+};
+
+function buildSimConnectionGraph() {
+  sim.connectionGraph = {};
+  state.connections.forEach(conn => {
+    if (!conn || conn.length < 2) return;
+    const [a, b] = conn;
+    if (!sim.connectionGraph[a]) sim.connectionGraph[a] = [];
+    if (!sim.connectionGraph[b]) sim.connectionGraph[b] = [];
+    sim.connectionGraph[a].push(b);
+    sim.connectionGraph[b].push(a);
+  });
+}
+
+function getSimConnectedPins(pinRef) {
+  return sim.connectionGraph[pinRef] || [];
+}
+
+// Find what Arduino pin a component pin connects to (traces through resistors)
+function findConnectedArduinoPin(partId, pinName) {
+  const ref = `${partId}:${pinName}`;
+  const connected = getSimConnectedPins(ref);
+  for (const c of connected) {
+    const [cPartId, cPin] = c.split(':');
+    const cPart = state.parts.find(p => p.id === cPartId);
+    if (cPart && cPart.type === 'wokwi-arduino-uno') return cPin;
+    // Trace through resistors
+    if (cPart && cPart.type === 'wokwi-resistor') {
+      const otherPin = c.endsWith(':1') ? `${cPartId}:2` : `${cPartId}:1`;
+      const next = getSimConnectedPins(otherPin);
+      for (const n of next) {
+        const [nPartId] = n.split(':');
+        const nPart = state.parts.find(p => p.id === nPartId);
+        if (nPart && nPart.type === 'wokwi-arduino-uno') return n.split(':')[1];
+      }
+    }
+  }
+  return null;
+}
+
+// Find motor connected to a bridge output channel
+function findMotorOnBridgeChannel(bridgeId, out1, out2) {
+  const out1Ref = `${bridgeId}:${out1}`;
+  const connected = getSimConnectedPins(out1Ref);
+  for (const c of connected) {
+    const [partId] = c.split(':');
+    const part = state.parts.find(p => p.id === partId);
+    if (part && part.type === 'chip-dc-motor') return part;
+  }
+  const out2Ref = `${bridgeId}:${out2}`;
+  const connected2 = getSimConnectedPins(out2Ref);
+  for (const c of connected2) {
+    const [partId] = c.split(':');
+    const part = state.parts.find(p => p.id === partId);
+    if (part && part.type === 'chip-dc-motor') return part;
+  }
+  return null;
+}
+
+function simReset() {
+  sim.running = false;
+  sim.abort = true;
+  sim.pins = {};
+  sim.servos = {};
+  // Clear visual state on parts
+  state.parts.forEach(p => { delete p._simBrightness; delete p._simAngle; delete p._simSpeed; delete p._simDirection; });
+  document.getElementById('simStatus').textContent = 'Stopped';
+  document.getElementById('btnSimRun').disabled = false;
+  document.getElementById('btnSimStop').disabled = true;
+  renderComponents();
+}
+
+function simStop() {
+  sim.abort = true;
+  sim.running = false;
+  document.getElementById('simStatus').textContent = 'Stopped';
+  document.getElementById('btnSimRun').disabled = false;
+  document.getElementById('btnSimStop').disabled = true;
+}
+
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+function serialPrint(text) {
+  const el = document.getElementById('serialOutput');
+  el.textContent += text;
+  el.scrollTop = el.scrollHeight;
+}
+
+// ─── Source Parser ───
+
+function parseSource(src) {
+  let code = src.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  // Strip #include lines
+  code = code.replace(/^\s*#include\s*[<"].*[>"]\s*$/gm, '');
+
+  // Extract #define and const int
+  const defines = {};
+  code.replace(/#define\s+(\w+)\s+(\S+)/g, (_, name, val) => { defines[name] = val; });
+  code.replace(/const\s+int\s+(\w+)\s*=\s*([^;]+);/g, (_, name, val) => { defines[name] = val.trim(); });
+
+  // Extract int/byte variables (globals)
+  code.replace(/(?:int|byte|long|unsigned long|float)\s+(\w+)\s*=\s*([^;]+);/g, (_, name, val) => { defines[name] = val.trim(); });
+
+  // Extract Servo declarations → register servo objects
+  code.replace(/Servo\s+(\w+)\s*;/g, (_, name) => { defines[`__is_servo_${name}`] = true; });
+
+  // Extract setup() body
+  const setupMatch = code.match(/void\s+setup\s*\(\s*\)\s*\{([\s\S]*?)^\}/m);
+  const setupBody = setupMatch ? setupMatch[1] : '';
+
+  // Extract loop() body
+  const loopMatch = code.match(/void\s+loop\s*\(\s*\)\s*\{([\s\S]*?)^\}/m);
+  const loopBody = loopMatch ? loopMatch[1] : '';
+
+  // Extract helper functions
+  const helpers = {};
+  const funcRegex = /(?:void|int|float|byte)\s+(\w+)\s*\(([^)]*)\)\s*\{([\s\S]*?)^\}/gm;
+  let match;
+  while ((match = funcRegex.exec(code)) !== null) {
+    const name = match[1];
+    if (name !== 'setup' && name !== 'loop') {
+      const params = match[2].split(',').map(p => p.trim().split(/\s+/).pop()).filter(Boolean);
+      helpers[name] = { params, body: match[3] };
+    }
+  }
+
+  return { defines, setupBody, loopBody, helpers };
+}
+
+function resolveValue(val, defines) {
+  if (val === undefined || val === null) return 0;
+  val = String(val).trim();
+  if (defines[val] !== undefined) return resolveValue(defines[val], defines);
+  if (val === 'HIGH' || val === 'true') return 1;
+  if (val === 'LOW' || val === 'false') return 0;
+  if (val === 'OUTPUT') return 1;
+  if (val === 'INPUT') return 0;
+  if (val === 'INPUT_PULLUP') return 2;
+  const num = parseFloat(val);
+  return isNaN(num) ? val : num;
+}
+
+// ─── Expression Evaluator ───
+
+function evaluateExpression(expr, defines, localVars) {
+  expr = expr.trim();
+  const ctx = {...defines, ...localVars};
+
+  // analogRead(pin)
+  let m = expr.match(/analogRead\s*\(\s*(.+?)\s*\)/);
+  if (m) {
+    const pin = resolveValue(m[1], ctx);
+    return getSimAnalogInput(pin);
+  }
+
+  // digitalRead(pin)
+  m = expr.match(/digitalRead\s*\(\s*(.+?)\s*\)/);
+  if (m) {
+    const pin = resolveValue(m[1], ctx);
+    return (sim.pins[pin] && sim.pins[pin].value) || 0;
+  }
+
+  // map(x, inMin, inMax, outMin, outMax)
+  m = expr.match(/map\s*\(\s*(.+?)\s*,\s*(.+?)\s*,\s*(.+?)\s*,\s*(.+?)\s*,\s*(.+?)\s*\)/);
+  if (m) {
+    const args = [m[1], m[2], m[3], m[4], m[5]].map(a => {
+      const v = evaluateExpression(a, defines, localVars);
+      return typeof v === 'number' ? v : resolveValue(a, ctx);
+    });
+    return Math.round((args[0] - args[1]) * (args[4] - args[3]) / (args[2] - args[1]) + args[3]);
+  }
+
+  // constrain(x, lo, hi)
+  m = expr.match(/constrain\s*\(\s*(.+?)\s*,\s*(.+?)\s*,\s*(.+?)\s*\)/);
+  if (m) {
+    const x = evaluateExpression(m[1], defines, localVars);
+    const lo = resolveValue(m[2], ctx);
+    const hi = resolveValue(m[3], ctx);
+    return Math.min(Math.max(x, lo), hi);
+  }
+
+  // millis()
+  if (expr.match(/millis\s*\(\s*\)/)) return Math.floor(performance.now());
+
+  // Simple arithmetic: val * val, val / val, val + val, val - val
+  m = expr.match(/^(.+?)\s*([+\-*/])\s*(.+?)$/);
+  if (m) {
+    const left = resolveValue(m[1], ctx);
+    const right = resolveValue(m[3], ctx);
+    if (typeof left === 'number' && typeof right === 'number') {
+      switch (m[2]) {
+        case '+': return left + right;
+        case '-': return left - right;
+        case '*': return left * right;
+        case '/': return right !== 0 ? Math.floor(left / right) : 0;
+      }
+    }
+  }
+
+  return resolveValue(expr, ctx);
+}
+
+function evaluateCondition(condStr, defines, localVars) {
+  const ctx = {...defines, ...localVars};
+  let m;
+  // i < N
+  m = condStr.match(/(\w+)\s*<\s*(.+)/);
+  if (m) return resolveValue(m[1], ctx) < resolveValue(m[2], ctx);
+  // i > N
+  m = condStr.match(/(\w+)\s*>\s*(.+)/);
+  if (m) return resolveValue(m[1], ctx) > resolveValue(m[2], ctx);
+  // i <= N
+  m = condStr.match(/(\w+)\s*<=\s*(.+)/);
+  if (m) return resolveValue(m[1], ctx) <= resolveValue(m[2], ctx);
+  // i >= N
+  m = condStr.match(/(\w+)\s*>=\s*(.+)/);
+  if (m) return resolveValue(m[1], ctx) >= resolveValue(m[2], ctx);
+  // i == N
+  m = condStr.match(/(\w+)\s*==\s*(.+)/);
+  if (m) return resolveValue(m[1], ctx) === resolveValue(m[2], ctx);
+  // i != N
+  m = condStr.match(/(\w+)\s*!=\s*(.+)/);
+  if (m) return resolveValue(m[1], ctx) !== resolveValue(m[2], ctx);
+  return false;
+}
+
+// ─── Statement Tokenizer (handles for loops and blocks) ───
+
+function tokenizeStatements(body) {
+  const statements = [];
+  let i = 0, len = body.length;
+
+  while (i < len) {
+    // Skip whitespace
+    while (i < len && /\s/.test(body[i])) i++;
+    if (i >= len) break;
+
+    // Check for 'for' loop
+    if (body.substring(i, i + 3) === 'for' && /\s*\(/.test(body.substring(i + 3, i + 10))) {
+      // Extract for(init; cond; incr) { body }
+      const parenStart = body.indexOf('(', i + 3);
+      let depth = 1, j = parenStart + 1;
+      while (j < len && depth > 0) { if (body[j] === '(') depth++; if (body[j] === ')') depth--; j++; }
+      const forHeader = body.substring(parenStart + 1, j - 1);
+      // Find the body (braces or single statement)
+      let k = j;
+      while (k < len && /\s/.test(body[k])) k++;
+      let forBody;
+      if (body[k] === '{') {
+        depth = 1; let bStart = k + 1; k++;
+        while (k < len && depth > 0) { if (body[k] === '{') depth++; if (body[k] === '}') depth--; k++; }
+        forBody = body.substring(bStart, k - 1);
+      } else {
+        const semi = body.indexOf(';', k);
+        forBody = body.substring(k, semi >= 0 ? semi : len);
+        k = semi >= 0 ? semi + 1 : len;
+      }
+      statements.push({ type: 'for', header: forHeader, body: forBody });
+      i = k;
+      continue;
+    }
+
+    // Check for block { ... }
+    if (body[i] === '{') {
+      let depth = 1, j = i + 1;
+      while (j < len && depth > 0) { if (body[j] === '{') depth++; if (body[j] === '}') depth--; j++; }
+      statements.push({ type: 'block', body: body.substring(i + 1, j - 1) });
+      i = j;
+      continue;
+    }
+
+    // Regular statement (up to next ;)
+    let j = i;
+    let depth = 0;
+    while (j < len) {
+      if (body[j] === '(' || body[j] === '{') depth++;
+      if (body[j] === ')' || body[j] === '}') depth--;
+      if (body[j] === ';' && depth === 0) break;
+      j++;
+    }
+    const stmtText = body.substring(i, j).trim();
+    if (stmtText) statements.push({ type: 'stmt', text: stmtText });
+    i = j + 1;
+  }
+  return statements;
+}
+
+// ─── Statement Executor (async, with real delays) ───
+
+async function executeBlock(body, defines, helpers, localVars = {}) {
+  const tokens = tokenizeStatements(body);
+
+  for (const token of tokens) {
+    if (sim.abort) return;
+
+    // Handle for loop
+    if (token.type === 'for') {
+      const parts = token.header.split(';');
+      if (parts.length === 3) {
+        // Execute init
+        const initStmt = parts[0].trim();
+        if (initStmt) {
+          const im = initStmt.match(/(?:int|byte|long|float)?\s*(\w+)\s*=\s*(.+)/);
+          if (im) { localVars[im[1]] = resolveValue(im[2], {...defines, ...localVars}); }
+        }
+        // Loop
+        const condStr = parts[1].trim();
+        const incrStr = parts[2].trim();
+        let maxIter = 1000; // safety limit
+        while (maxIter-- > 0 && !sim.abort) {
+          // Evaluate condition
+          if (!evaluateCondition(condStr, defines, localVars)) break;
+          // Execute body
+          await executeBlock(token.body, defines, helpers, localVars);
+          // Increment
+          const incM = incrStr.match(/(\w+)\s*(\+\+|--|\+=\s*(.+)|-=\s*(.+))/);
+          if (incM) {
+            const v = incM[1];
+            const cur = typeof localVars[v] === 'number' ? localVars[v] : resolveValue(localVars[v] || '0', defines);
+            if (incM[2] === '++') localVars[v] = cur + 1;
+            else if (incM[2] === '--') localVars[v] = cur - 1;
+            else if (incM[3]) localVars[v] = cur + resolveValue(incM[3], {...defines, ...localVars});
+            else if (incM[4]) localVars[v] = cur - resolveValue(incM[4], {...defines, ...localVars});
+          }
+        }
+      }
+      continue;
+    }
+
+    if (token.type === 'block') {
+      await executeBlock(token.body, defines, helpers, localVars);
+      continue;
+    }
+
+    // Regular statement
+    const stmt = token.text;
+    if (!stmt) continue;
+
+    let m;
+
+    // Variable assignment: varName = expr (may contain function calls)
+    m = stmt.match(/^(?:int|byte|long|float|unsigned\s+long|String)?\s*(\w+)\s*=\s*(.+)$/);
+    if (m) {
+      const name = m[1];
+      let val = m[2].trim();
+      val = evaluateExpression(val, defines, localVars);
+      localVars[name] = val;
+      defines[name] = val;
+      continue;
+    }
+
+    // digitalWrite(pin, val)
+    m = stmt.match(/digitalWrite\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/);
+    if (m) {
+      const pin = resolveValue(m[1], {...defines, ...localVars});
+      const val = resolveValue(m[2], {...defines, ...localVars});
+      sim.pins[pin] = { mode: 1, value: val ? 1 : 0 };
+      applySimState();
+      continue;
+    }
+
+    // analogWrite(pin, val)
+    m = stmt.match(/analogWrite\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/);
+    if (m) {
+      const pin = resolveValue(m[1], {...defines, ...localVars});
+      let val = resolveValue(m[2], {...defines, ...localVars});
+      sim.pins[pin] = { mode: 1, value: typeof val === 'number' ? val : 0 };
+      applySimState();
+      continue;
+    }
+
+    // delay(ms)
+    m = stmt.match(/delay\s*\(\s*(\d+)\s*\)/);
+    if (m) {
+      const ms = Math.min(parseInt(m[1]), 2000); // cap visual delay
+      await sleep(ms);
+      continue;
+    }
+
+    // Serial.println(...)
+    m = stmt.match(/Serial\.println\s*\(\s*(.*)\s*\)/);
+    if (m) {
+      const arg = m[1].trim();
+      if (arg.startsWith('"') || arg.startsWith("'")) {
+        serialPrint(arg.replace(/^["']|["']$/g, '').replace(/\\t/g, '\t') + '\n');
+      } else {
+        serialPrint(String(resolveValue(arg, {...defines, ...localVars})) + '\n');
+      }
+      continue;
+    }
+
+    // Serial.print(...)
+    m = stmt.match(/Serial\.print\s*\(\s*(.*)\s*\)/);
+    if (m) {
+      const arg = m[1].trim();
+      if (arg.startsWith('"') || arg.startsWith("'")) {
+        serialPrint(arg.replace(/^["']|["']$/g, '').replace(/\\t/g, '\t'));
+      } else {
+        serialPrint(String(resolveValue(arg, {...defines, ...localVars})));
+      }
+      continue;
+    }
+
+    // servo.write(angle) / servo.attach(pin)
+    m = stmt.match(/(\w+)\.write\s*\(\s*(.+?)\s*\)/);
+    if (m) {
+      const angle = resolveValue(m[2], {...defines, ...localVars});
+      // Find the servo's attached pin
+      const servoName = m[1];
+      const pin = localVars[`__servo_pin_${servoName}`] || defines[`__servo_pin_${servoName}`];
+      if (pin !== undefined) sim.servos[pin] = angle;
+      applySimState();
+      continue;
+    }
+    m = stmt.match(/(\w+)\.attach\s*\(\s*(.+?)\s*\)/);
+    if (m) {
+      const pin = resolveValue(m[2], {...defines, ...localVars});
+      localVars[`__servo_pin_${m[1]}`] = pin;
+      defines[`__servo_pin_${m[1]}`] = pin;
+      sim.servos[pin] = 90;
+      continue;
+    }
+
+    // Function call: name(args)
+    m = stmt.match(/^(\w+)\s*\(\s*(.*?)\s*\)$/);
+    if (m && helpers[m[1]]) {
+      const func = helpers[m[1]];
+      const args = m[2] ? m[2].split(',').map(a => resolveValue(a.trim(), {...defines, ...localVars})) : [];
+      const newLocals = {};
+      func.params.forEach((p, i) => { newLocals[p] = args[i]; });
+      await executeBlock(func.body, defines, helpers, {...localVars, ...newLocals});
+      continue;
+    }
+
+    // pinMode — just note it
+    m = stmt.match(/pinMode\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/);
+    if (m) {
+      const pin = resolveValue(m[1], {...defines, ...localVars});
+      sim.pins[pin] = { mode: resolveValue(m[2], defines), value: 0 };
+      continue;
+    }
+
+    // Compound assignment: var += expr, var -= expr, var *= expr, var /= expr
+    m = stmt.match(/^(\w+)\s*([+\-*/])=\s*(.+)$/);
+    if (m) {
+      const name = m[1];
+      const op = m[2];
+      const cur = typeof localVars[name] === 'number' ? localVars[name] : resolveValue(localVars[name] || defines[name] || '0', {...defines, ...localVars});
+      const rhs = evaluateExpression(m[3], defines, localVars);
+      switch (op) {
+        case '+': localVars[name] = cur + rhs; break;
+        case '-': localVars[name] = cur - rhs; break;
+        case '*': localVars[name] = cur * rhs; break;
+        case '/': localVars[name] = rhs !== 0 ? Math.floor(cur / rhs) : 0; break;
+      }
+      defines[name] = localVars[name];
+      continue;
+    }
+
+    // Serial.begin — ignore
+    if (stmt.includes('Serial.begin')) continue;
+  }
+}
+
+// ─── Apply pin states to visual components ───
+
+function applySimState() {
+  buildSimConnectionGraph();
+  const parts = state.parts;
+
+  // LEDs
+  parts.filter(p => p.type === 'wokwi-led').forEach(led => {
+    const aPin = findConnectedArduinoPin(led.id, 'A');
+    if (aPin !== null) {
+      const pinState = sim.pins[aPin] || sim.pins[parseInt(aPin)];
+      const val = pinState ? pinState.value : 0;
+      led._simBrightness = val > 1 ? val / 255 : val; // PWM or digital
+    }
+  });
+
+  // Servos
+  parts.filter(p => p.type === 'wokwi-servo').forEach(servo => {
+    const pwmPin = findConnectedArduinoPin(servo.id, 'PWM');
+    if (pwmPin !== null && sim.servos[pwmPin] !== undefined) {
+      servo._simAngle = sim.servos[pwmPin];
+    } else if (pwmPin !== null && sim.servos[parseInt(pwmPin)] !== undefined) {
+      servo._simAngle = sim.servos[parseInt(pwmPin)];
+    }
+  });
+
+  // H-Bridge → Motors
+  parts.filter(p => p.type === 'chip-l298n').forEach(bridge => {
+    const pinMap = {};
+    ['ENA','IN1','IN2','IN3','IN4','ENB'].forEach(bPin => {
+      const aPin = findConnectedArduinoPin(bridge.id, bPin);
+      if (aPin !== null) pinMap[bPin] = aPin;
+    });
+
+    const getVal = (bPin) => {
+      const aPin = pinMap[bPin];
+      if (!aPin) return 0;
+      const ps = sim.pins[aPin] || sim.pins[parseInt(aPin)];
+      return ps ? ps.value : 0;
+    };
+
+    const ena = getVal('ENA'), enb = getVal('ENB');
+    const in1 = getVal('IN1'), in2 = getVal('IN2');
+    const in3 = getVal('IN3'), in4 = getVal('IN4');
+
+    // Channel A
+    const motorA = findMotorOnBridgeChannel(bridge.id, 'OUT1', 'OUT2');
+    if (motorA) {
+      if (ena > 0 && in1 && !in2) { motorA._simDirection = 'CW'; motorA._simSpeed = ena > 1 ? ena/255 : 1; }
+      else if (ena > 0 && !in1 && in2) { motorA._simDirection = 'CCW'; motorA._simSpeed = ena > 1 ? ena/255 : 1; }
+      else { motorA._simDirection = 'STOP'; motorA._simSpeed = 0; }
+    }
+
+    // Channel B
+    const motorB = findMotorOnBridgeChannel(bridge.id, 'OUT3', 'OUT4');
+    if (motorB) {
+      if (enb > 0 && in3 && !in4) { motorB._simDirection = 'CW'; motorB._simSpeed = enb > 1 ? enb/255 : 1; }
+      else if (enb > 0 && !in3 && in4) { motorB._simDirection = 'CCW'; motorB._simSpeed = enb > 1 ? enb/255 : 1; }
+      else { motorB._simDirection = 'STOP'; motorB._simSpeed = 0; }
+    }
+  });
+
+  // Direct motor connections (no H-bridge)
+  parts.filter(p => p.type === 'chip-dc-motor').forEach(motor => {
+    if (motor._simDirection) return; // already set by H-bridge
+    const t1Pin = findConnectedArduinoPin(motor.id, 'TERM1');
+    const t2Pin = findConnectedArduinoPin(motor.id, 'TERM2');
+    const t1 = t1Pin ? (sim.pins[t1Pin] || sim.pins[parseInt(t1Pin)]) : null;
+    const t2 = t2Pin ? (sim.pins[t2Pin] || sim.pins[parseInt(t2Pin)]) : null;
+    const v1 = t1 ? t1.value : 0, v2 = t2 ? t2.value : 0;
+    if (v1 > v2) { motor._simDirection = 'CW'; motor._simSpeed = 1; }
+    else if (v2 > v1) { motor._simDirection = 'CCW'; motor._simSpeed = 1; }
+    else { motor._simDirection = 'STOP'; motor._simSpeed = 0; }
+  });
+
+  renderComponents();
+}
+
+// ─── Run Firmware ───
+
+async function simStart() {
+  const code = document.getElementById('simCode').value;
+  if (!code.trim()) { serialPrint('No code to run.\n'); return; }
+
+  simReset();
+  sim.abort = false;
+  sim.running = true;
+  document.getElementById('simStatus').textContent = 'Running';
+  document.getElementById('btnSimRun').disabled = true;
+  document.getElementById('btnSimStop').disabled = false;
+
+  buildSimConnectionGraph();
+
+  try {
+    const parsed = parseSource(code);
+    serialPrint('--- Running setup() ---\n');
+    await executeBlock(parsed.setupBody, parsed.defines, parsed.helpers);
+
+    serialPrint('--- Running loop() ---\n');
+    while (!sim.abort) {
+      await executeBlock(parsed.loopBody, parsed.defines, parsed.helpers);
+      if (sim.abort) break;
+      await sleep(50); // Small gap between iterations
+    }
+  } catch (e) {
+    serialPrint('ERROR: ' + e.message + '\n');
+  }
+
+  sim.running = false;
+  document.getElementById('simStatus').textContent = 'Stopped';
+  document.getElementById('btnSimRun').disabled = false;
+  document.getElementById('btnSimStop').disabled = true;
+}
+
+// ═══════════════════════════════════════════════════════
+// SIMULATION UI BINDINGS
+// ═══════════════════════════════════════════════════════
+
+function initSimPanel() {
+  document.getElementById('btnSimToggle').addEventListener('click', () => {
+    const panel = document.getElementById('simPanel');
+    panel.classList.toggle('visible');
+    if (panel.classList.contains('visible')) renderSimControls();
+  });
+  document.getElementById('btnSimRun').addEventListener('click', simStart);
+  document.getElementById('btnSimStop').addEventListener('click', simStop);
+  document.getElementById('btnSimReset').addEventListener('click', () => {
+    simReset();
+    document.getElementById('serialOutput').textContent = '';
+  });
+  document.getElementById('btnSerialClear').addEventListener('click', () => {
+    document.getElementById('serialOutput').textContent = '';
+  });
+
+  // Tab key support in code editor
+  document.getElementById('simCode').addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const ta = e.target;
+      const start = ta.selectionStart;
+      ta.value = ta.value.substring(0, start) + '  ' + ta.value.substring(ta.selectionEnd);
+      ta.selectionStart = ta.selectionEnd = start + 2;
+    }
+  });
+
+  // Render controls whenever sim panel opens
+  renderSimControls();
+}
+
+// Build interactive controls for input components (potentiometers, buttons, etc.)
+function renderSimControls() {
+  const container = document.getElementById('simControls');
+  if (!container) return;
+  let html = '';
+
+  const pots = state.parts.filter(p => p.type === 'wokwi-potentiometer');
+  const buttons = state.parts.filter(p => p.type === 'wokwi-pushbutton');
+
+  if (pots.length > 0) {
+    pots.forEach(p => {
+      html += `<label>${p.id} (Pot)</label>`;
+      html += `<input type="range" min="0" max="1023" value="512" data-sim-pot="${p.id}">`;
+      html += `<span class="ctrl-val" data-sim-pot-val="${p.id}">512</span>`;
+    });
+  }
+
+  if (buttons.length > 0) {
+    buttons.forEach(p => {
+      html += `<label>${p.id}</label>`;
+      html += `<button class="toolbar-btn" data-sim-btn="${p.id}" style="font-size:10px;padding:2px 8px;">PRESS</button>`;
+    });
+  }
+
+  if (!html) {
+    html = '<div class="no-controls">No input components</div>';
+  }
+  container.innerHTML = html;
+
+  // Attach slider events
+  container.querySelectorAll('input[type=range]').forEach(slider => {
+    slider.addEventListener('input', () => {
+      const id = slider.dataset.simPot;
+      const valEl = container.querySelector(`[data-sim-pot-val="${id}"]`);
+      if (valEl) valEl.textContent = slider.value;
+    });
+  });
+}
+
+// Get the current value of a potentiometer slider by its connected Arduino pin
+function getSimAnalogInput(pin) {
+  // Find which potentiometer connects to this Arduino pin
+  buildSimConnectionGraph();
+  const pots = state.parts.filter(p => p.type === 'wokwi-potentiometer');
+  for (const pot of pots) {
+    const sigPin = findConnectedArduinoPin(pot.id, 'SIG');
+    if (sigPin === pin || sigPin === String(pin) || parseInt(sigPin) === pin) {
+      const slider = document.querySelector(`[data-sim-pot="${pot.id}"]`);
+      return slider ? parseInt(slider.value) : 512;
+    }
+  }
+  return 512; // default midpoint
+}
+
+// ═══════════════════════════════════════════════════════
 // DRAG & DROP FROM FILESYSTEM
 // ═══════════════════════════════════════════════════════
 
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', (e) => {
-  // Only handle file drops on the main area
   if (e.target.closest('.palette-item')) return;
+  e.preventDefault();
   for (const file of e.dataTransfer.files) {
     if (file.name.endsWith('.json')) {
-      e.preventDefault();
       loadDiagramFile(file);
-      break;
+    } else if (file.name.endsWith('.cpp') || file.name.endsWith('.ino')) {
+      // Load Arduino source into sim code editor
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        document.getElementById('simCode').value = ev.target.result;
+        // Auto-open sim panel
+        document.getElementById('simPanel').classList.add('visible');
+        renderSimControls();
+      };
+      reader.readAsText(file);
     }
   }
 });

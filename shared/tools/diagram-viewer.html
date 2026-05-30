@@ -107,7 +107,7 @@ header .load-btn:hover { background: #1a3a6e; }
       <p>Load a project's <code>diagram.json</code> to visualize the circuit.</p>
       <p>Optionally load <code>src/main.cpp</code> to see the firmware code.</p>
       <p style="margin-top: 16px; color: #666;">Drag &amp; drop files anywhere, or use the buttons above.</p>
-      <p style="margin-top: 24px; font-size: 11px; color: #444;">Supports: Arduino Uno, LEDs, Potentiometers, Resistors, Servos, L298N, DC Motors</p>
+      <p style="margin-top: 24px; font-size: 11px; color: #444;">Supports: Arduino Uno, Raspberry Pi 3, LEDs, Potentiometers, Resistors, Servos, PCA9685, HC-SR04, L298N, DC Motors</p>
     </div>
     <svg id="circuit-svg" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg" style="display:none;">
       <defs>
@@ -317,6 +317,243 @@ const COMPONENT_REGISTRY = {
         <rect x="52" y="58" width="4" height="12" fill="#aaa" rx="1"/>
         <text x="14" y="75" text-anchor="middle" font-size="5" fill="#888">T1</text>
         <text x="54" y="75" text-anchor="middle" font-size="5" fill="#888">T2</text>
+      `;
+    }
+  },
+
+  'chip-csi-camera': {
+    width: 120, height: 80,
+    pins: { 'CSI': {x: 60, y: 80} },
+    render(g, part) {
+      const label = (part.attrs && part.attrs.label) || 'CSI Camera';
+      g.innerHTML = `
+        <rect width="120" height="80" rx="6" fill="#263238" stroke="#455a64" stroke-width="2"/>
+        <!-- Lens -->
+        <circle cx="60" cy="32" r="22" fill="#37474f" stroke="#607d8b" stroke-width="2"/>
+        <circle cx="60" cy="32" r="16" fill="#1a237e" stroke="#283593" stroke-width="1.5"/>
+        <circle cx="60" cy="32" r="9" fill="#0d47a1" stroke="#1565c0" stroke-width="1"/>
+        <circle cx="60" cy="32" r="4" fill="#42a5f5"/>
+        <!-- LED -->
+        <circle cx="96" cy="14" r="3" fill="#f44336" opacity="0.7"/>
+        <!-- Label -->
+        <text x="60" y="68" text-anchor="middle" font-family="monospace" font-size="7" font-weight="bold" fill="#b0bec5">${label}</text>
+        <!-- Ribbon cable -->
+        <rect x="45" y="75" width="30" height="8" rx="1" fill="#78909c" stroke="#90a4ae"/>
+        <line x1="50" y1="76" x2="50" y2="82" stroke="#546e7a" stroke-width="0.5"/>
+        <line x1="55" y1="76" x2="55" y2="82" stroke="#546e7a" stroke-width="0.5"/>
+        <line x1="60" y1="76" x2="60" y2="82" stroke="#546e7a" stroke-width="0.5"/>
+        <line x1="65" y1="76" x2="65" y2="82" stroke="#546e7a" stroke-width="0.5"/>
+        <line x1="70" y1="76" x2="70" y2="82" stroke="#546e7a" stroke-width="0.5"/>
+      `;
+    }
+  },
+
+  'chip-usb-microphone': {
+    width: 80, height: 65,
+    pins: { 'USB': {x: 40, y: 65} },
+    render(g, part) {
+      const label = (part.attrs && part.attrs.label) || 'USB Mic';
+      g.innerHTML = `
+        <rect width="80" height="65" rx="6" fill="#37474f" stroke="#546e7a" stroke-width="2"/>
+        <!-- Mic grille -->
+        <circle cx="40" cy="24" r="16" fill="#263238" stroke="#455a64" stroke-width="1.5"/>
+        <circle cx="40" cy="24" r="12" fill="#1a1a2e"/>
+        ${[0,1,2,3,4,5].map(i => {
+          const a = i * 60 * Math.PI / 180;
+          return `<circle cx="${40 + 8*Math.cos(a)}" cy="${24 + 8*Math.sin(a)}" r="1" fill="#455a64"/>`;
+        }).join('')}
+        <circle cx="40" cy="24" r="2" fill="#455a64"/>
+        <!-- LED indicator -->
+        <circle cx="64" cy="10" r="2.5" fill="#4caf50" opacity="0.8"/>
+        <!-- Label -->
+        <text x="40" y="50" text-anchor="middle" font-family="monospace" font-size="7" font-weight="bold" fill="#b0bec5">${label}</text>
+        <!-- USB plug -->
+        <rect x="30" y="58" width="20" height="9" rx="2" fill="#555" stroke="#777"/>
+        <rect x="34" y="60" width="12" height="5" rx="1" fill="#333"/>
+        <circle cx="40" cy="65" r="3" fill="#78909c"/>
+      `;
+    }
+  },
+
+  'chip-usb-powerbank': {
+    width: 110, height: 55,
+    pins: { 'VOUT': {x: 110, y: 18}, 'GND': {x: 110, y: 38} },
+    render(g, part) {
+      const label = (part.attrs && part.attrs.label) || '5V 3A';
+      g.innerHTML = `
+        <rect width="110" height="55" rx="6" fill="#37474f" stroke="#546e7a" stroke-width="2"/>
+        <rect x="8" y="8" width="70" height="14" rx="3" fill="#4caf50" opacity="0.7"/>
+        <rect x="8" y="8" width="50" height="14" rx="3" fill="#4caf50"/>
+        <text x="55" y="38" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#fff">POWER BANK</text>
+        <text x="55" y="50" text-anchor="middle" font-family="monospace" font-size="7" fill="#90a4ae">${label}</text>
+        <rect x="100" y="12" width="10" height="10" rx="2" fill="#333" stroke="#555"/>
+        <text x="105" y="19" text-anchor="middle" font-size="4" fill="#aaa">USB</text>
+        <circle cx="110" cy="18" r="3" fill="#f44336"/>
+        <circle cx="110" cy="38" r="3" fill="#555"/>
+        <text x="97" y="20" text-anchor="end" font-size="5" fill="#f44336">+</text>
+        <text x="97" y="40" text-anchor="end" font-size="5" fill="#888">−</text>
+      `;
+    }
+  },
+
+  'chip-battery-pack': {
+    width: 100, height: 55,
+    pins: { 'POS': {x: 100, y: 18}, 'NEG': {x: 100, y: 38} },
+    render(g, part) {
+      const label = (part.attrs && part.attrs.label) || '4×AA 6V';
+      g.innerHTML = `
+        <rect width="100" height="55" rx="6" fill="#4e342e" stroke="#6d4c41" stroke-width="2"/>
+        <!-- Battery cells -->
+        <rect x="8" y="10" width="18" height="34" rx="2" fill="#fdd835" stroke="#f9a825" stroke-width="1"/>
+        <rect x="10" y="7" width="5" height="4" rx="1" fill="#aaa"/>
+        <rect x="28" y="10" width="18" height="34" rx="2" fill="#fdd835" stroke="#f9a825" stroke-width="1"/>
+        <rect x="30" y="7" width="5" height="4" rx="1" fill="#aaa"/>
+        <rect x="48" y="10" width="18" height="34" rx="2" fill="#fdd835" stroke="#f9a825" stroke-width="1"/>
+        <rect x="50" y="7" width="5" height="4" rx="1" fill="#aaa"/>
+        <rect x="68" y="10" width="18" height="34" rx="2" fill="#fdd835" stroke="#f9a825" stroke-width="1"/>
+        <rect x="70" y="7" width="5" height="4" rx="1" fill="#aaa"/>
+        <text x="50" y="52" text-anchor="middle" font-family="monospace" font-size="7" fill="#bcaaa4">${label}</text>
+        <circle cx="100" cy="18" r="3" fill="#f44336"/>
+        <circle cx="100" cy="38" r="3" fill="#555"/>
+        <text x="93" y="20" text-anchor="end" font-size="5" fill="#f44336">+</text>
+        <text x="93" y="40" text-anchor="end" font-size="5" fill="#888">−</text>
+      `;
+    }
+  },
+
+  'chip-raspberrypi3': {
+    width: 200, height: 280,
+    pins: {
+      // Left column (odd physical pins): 3V3, GPIO2-GPIO11
+      '3V3': {x: 0, y: 30}, 'GPIO2': {x: 0, y: 46}, 'GPIO3': {x: 0, y: 62},
+      'GPIO4': {x: 0, y: 78}, 'GND.1': {x: 0, y: 94}, 'GPIO17': {x: 0, y: 110},
+      'GPIO27': {x: 0, y: 126}, 'GPIO22': {x: 0, y: 142}, '3V3.2': {x: 0, y: 158},
+      'GPIO10': {x: 0, y: 174}, 'GPIO9': {x: 0, y: 190}, 'GPIO11': {x: 0, y: 206},
+      'GND.4': {x: 0, y: 222}, 'GPIO0': {x: 0, y: 238}, 'GPIO5': {x: 0, y: 254},
+      'GPIO6': {x: 0, y: 270}, 'GPIO13': {x: 0, y: 286}, 'GPIO19': {x: 0, y: 302},
+      'GPIO26': {x: 0, y: 318}, 'GND.6': {x: 0, y: 334},
+      // Right column (even physical pins): 5V, GND, GPIO14-GPIO21
+      '5V': {x: 200, y: 30}, '5V.2': {x: 200, y: 46}, 'GND.2': {x: 200, y: 62},
+      'GPIO14': {x: 200, y: 78}, 'GPIO15': {x: 200, y: 94}, 'GPIO18': {x: 200, y: 110},
+      'GND.3': {x: 200, y: 126}, 'GPIO23': {x: 200, y: 142}, 'GPIO24': {x: 200, y: 158},
+      'GND.5': {x: 200, y: 174}, 'GPIO25': {x: 200, y: 190}, 'GPIO8': {x: 200, y: 206},
+      'GPIO7': {x: 200, y: 222}, 'GPIO1': {x: 200, y: 238}, 'GPIO12': {x: 200, y: 254},
+      'GND.7': {x: 200, y: 270}, 'GPIO16': {x: 200, y: 286}, 'GPIO20': {x: 200, y: 302},
+      'GPIO21': {x: 200, y: 318},
+      // Dedicated ports (not on GPIO header)
+      'CSI': {x: 100, y: 0}, 'USB1': {x: 200, y: 350}, 'USB2': {x: 200, y: 366},
+    },
+    render(g, part) {
+      // Board body
+      g.innerHTML = `
+        <rect width="200" height="380" rx="8" fill="#2e7d32" stroke="#1b5e20" stroke-width="2"/>
+        <rect x="15" y="8" width="170" height="36" rx="4" fill="#1b5e20"/>
+        <text x="100" y="24" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#fff">RASPBERRY PI 3</text>
+        <text x="100" y="38" text-anchor="middle" font-family="monospace" font-size="7" fill="#a5d6a7">BCM2837 · 1GB RAM</text>
+        <!-- CSI camera port -->
+        <rect x="65" y="46" width="70" height="14" rx="3" fill="#444" stroke="#666" stroke-width="1.5"/>
+        <rect x="68" y="48" width="64" height="10" rx="2" fill="#333"/>
+        <!-- ribbon cable lines inside connector -->
+        ${[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14].map(i => `<line x1="${72+i*4}" y1="49" x2="${72+i*4}" y2="57" stroke="#555" stroke-width="0.7"/>`).join('')}
+        <text x="100" y="70" text-anchor="middle" font-size="7" font-weight="bold" fill="#a5d6a7">CSI CAMERA</text>
+        <!-- CSI pin dot at top edge -->
+        <circle cx="100" cy="0" r="4" fill="#78909c" stroke="#546e7a" stroke-width="1"/>
+        <line x1="100" y1="4" x2="100" y2="46" stroke="#78909c" stroke-width="1.5" stroke-dasharray="3,2"/>
+        <!-- USB ports -->
+        <rect x="172" y="342" width="28" height="14" rx="2" fill="#333" stroke="#555"/>
+        <text x="186" y="351" text-anchor="middle" font-size="5" fill="#aaa">USB1</text>
+        <rect x="172" y="360" width="28" height="14" rx="2" fill="#333" stroke="#555"/>
+        <text x="186" y="369" text-anchor="middle" font-size="5" fill="#aaa">USB2</text>
+        <!-- GPIO header label -->
+        <text x="100" y="84" text-anchor="middle" font-size="7" fill="#a5d6a7" font-weight="bold">── GPIO HEADER ──</text>
+        <!-- Left column pins -->
+        ${['3V3','GPIO2','GPIO3','GPIO4','GND.1','GPIO17','GPIO27','GPIO22','3V3.2','GPIO10','GPIO9','GPIO11','GND.4','GPIO0','GPIO5','GPIO6','GPIO13','GPIO19','GPIO26','GND.6'].map((n,i) => {
+          const p = this.pins[n];
+          const isGnd = n.startsWith('GND');
+          const isPwr = n.startsWith('3V3') || n.startsWith('5V');
+          const isI2C = n === 'GPIO2' || n === 'GPIO3';
+          const fill = isGnd ? '#555' : isPwr ? '#f44336' : isI2C ? '#2196f3' : '#fdd835';
+          const label = n.replace('.1','').replace('.2','').replace('.4','').replace('.6','');
+          return `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${fill}"/><text x="${p.x+8}" y="${p.y+3}" font-size="6" fill="#ccc" font-family="monospace">${label}</text>`;
+        }).join('')}
+        <!-- Right column pins -->
+        ${['5V','5V.2','GND.2','GPIO14','GPIO15','GPIO18','GND.3','GPIO23','GPIO24','GND.5','GPIO25','GPIO8','GPIO7','GPIO1','GPIO12','GND.7','GPIO16','GPIO20','GPIO21'].map((n,i) => {
+          const p = this.pins[n];
+          const isGnd = n.startsWith('GND');
+          const isPwr = n.startsWith('5V');
+          const fill = isGnd ? '#555' : isPwr ? '#f44336' : '#fdd835';
+          const label = n.replace('.2','').replace('.3','').replace('.5','').replace('.7','');
+          return `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${fill}"/><text x="${p.x-8}" y="${p.y+3}" text-anchor="end" font-size="6" fill="#ccc" font-family="monospace">${label}</text>`;
+        }).join('')}
+      `;
+    }
+  },
+
+  'chip-pca9685': {
+    width: 130, height: 160,
+    pins: {
+      // I2C + power (left side)
+      'VCC': {x: 0, y: 30}, 'GND': {x: 0, y: 50}, 'SDA': {x: 0, y: 70}, 'SCL': {x: 0, y: 90},
+      // Servo power (bottom)
+      'V+': {x: 40, y: 160}, 'GNDM': {x: 90, y: 160},
+      // Servo channels (right side)
+      'CH0': {x: 130, y: 20}, 'CH1': {x: 130, y: 38}, 'CH2': {x: 130, y: 56}, 'CH3': {x: 130, y: 74},
+      'CH4': {x: 130, y: 92}, 'CH5': {x: 130, y: 110}, 'CH6': {x: 130, y: 128}, 'CH7': {x: 130, y: 146},
+    },
+    render(g, part) {
+      g.innerHTML = `
+        <rect width="130" height="160" rx="6" fill="#4a148c" stroke="#6a1b9a" stroke-width="2"/>
+        <rect x="10" y="6" width="110" height="28" rx="3" fill="#311b92"/>
+        <text x="65" y="20" text-anchor="middle" font-family="monospace" font-size="10" font-weight="bold" fill="#fff">PCA9685</text>
+        <text x="65" y="30" text-anchor="middle" font-family="monospace" font-size="6" fill="#ce93d8">16-CH PWM · I2C 0x40</text>
+        <!-- I2C + power pins (left) -->
+        ${[['VCC',30,'#f44336'],['GND',50,'#555'],['SDA',70,'#2196f3'],['SCL',90,'#2196f3']].map(([n,y,c]) =>
+          `<circle cx="0" cy="${y}" r="3.5" fill="${c}"/><text x="8" y="${y+3}" font-size="7" fill="#fff" font-family="monospace">${n}</text>`
+        ).join('')}
+        <!-- Servo power (bottom) -->
+        <circle cx="40" cy="160" r="3.5" fill="#f44336"/>
+        <text x="40" y="152" text-anchor="middle" font-size="6" fill="#ce93d8">V+</text>
+        <circle cx="90" cy="160" r="3.5" fill="#555"/>
+        <text x="90" y="152" text-anchor="middle" font-size="6" fill="#ce93d8">GND</text>
+        <!-- Channel pins (right) -->
+        ${[0,1,2,3,4,5,6,7].map(i => {
+          const y = 20 + i * 18;
+          return `<circle cx="130" cy="${y}" r="3" fill="#ff9800"/><text x="122" y="${y+3}" text-anchor="end" font-size="6" fill="#fff" font-family="monospace">CH${i}</text>`;
+        }).join('')}
+        <!-- Channel zone labels -->
+        <text x="115" y="46" text-anchor="end" font-size="5" fill="#ce93d8">FL</text>
+        <text x="115" y="64" text-anchor="end" font-size="5" fill="#ce93d8">FR</text>
+        <text x="115" y="82" text-anchor="end" font-size="5" fill="#ce93d8">RL</text>
+        <text x="115" y="100" text-anchor="end" font-size="5" fill="#ce93d8">RR</text>
+      `;
+    }
+  },
+
+  'chip-hc-sr04': {
+    width: 100, height: 70,
+    pins: {
+      'VCC': {x: 15, y: 70}, 'TRIG': {x: 38, y: 70}, 'ECHO': {x: 62, y: 70}, 'GND': {x: 85, y: 70}
+    },
+    render(g, part) {
+      g.innerHTML = `
+        <rect width="100" height="55" rx="4" fill="#006064" stroke="#00838f" stroke-width="1.5"/>
+        <!-- Ultrasonic transducers -->
+        <circle cx="28" cy="25" r="14" fill="#263238" stroke="#37474f" stroke-width="1.5"/>
+        <circle cx="28" cy="25" r="8" fill="#37474f"/>
+        <circle cx="72" cy="25" r="14" fill="#263238" stroke="#37474f" stroke-width="1.5"/>
+        <circle cx="72" cy="25" r="8" fill="#37474f"/>
+        <text x="28" y="28" text-anchor="middle" font-size="5" fill="#80cbc4">TX</text>
+        <text x="72" y="28" text-anchor="middle" font-size="5" fill="#80cbc4">RX</text>
+        <text x="50" y="50" text-anchor="middle" font-family="monospace" font-size="8" font-weight="bold" fill="#fff">HC-SR04</text>
+        <!-- Pins -->
+        <rect x="12" y="55" width="5" height="15" fill="#aaa" rx="1"/>
+        <rect x="35" y="55" width="5" height="15" fill="#aaa" rx="1"/>
+        <rect x="59" y="55" width="5" height="15" fill="#aaa" rx="1"/>
+        <rect x="82" y="55" width="5" height="15" fill="#aaa" rx="1"/>
+        <text x="15" y="78" text-anchor="middle" font-size="5" fill="#888">VCC</text>
+        <text x="38" y="78" text-anchor="middle" font-size="5" fill="#888">TRIG</text>
+        <text x="62" y="78" text-anchor="middle" font-size="5" fill="#888">ECHO</text>
+        <text x="85" y="78" text-anchor="middle" font-size="5" fill="#888">GND</text>
       `;
     }
   }

@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "author": "Viktor Ciroski",
+  "editor": "custom",
+  "parts": [
+    { "type": "chip-raspberrypi3", "id": "pi3", "top": 0, "left": 200, "attrs": {} },
+    { "type": "chip-l298n", "id": "l298_L", "top": 40, "left": -150, "attrs": { "Vs": "6" } },
+    { "type": "chip-l298n", "id": "l298_R", "top": 40, "left": 500, "attrs": { "Vs": "6" } },
+    { "type": "chip-dc-motor", "id": "motor_fl", "top": -60, "left": -300, "attrs": {} },
+    { "type": "chip-dc-motor", "id": "motor_rl", "top": 160, "left": -300, "attrs": {} },
+    { "type": "chip-dc-motor", "id": "motor_fr", "top": -60, "left": 700, "attrs": {} },
+    { "type": "chip-dc-motor", "id": "motor_rr", "top": 160, "left": 700, "attrs": {} },
+    { "type": "chip-hc-sr04", "id": "sonar", "top": -160, "left": 220, "attrs": {} },
+    { "type": "wokwi-resistor", "id": "r1", "top": -80, "left": 280, "attrs": { "resistance": "1k" } },
+    { "type": "wokwi-resistor", "id": "r2", "top": -60, "left": 280, "attrs": { "resistance": "2k" } },
+    { "type": "chip-usb-powerbank", "id": "psu_logic", "top": 320, "left": 220, "attrs": { "label": "5V 3A" } },
+    { "type": "chip-battery-pack", "id": "psu_motor", "top": 320, "left": -120, "attrs": { "label": "4×AA 6V" } },
+    { "type": "chip-csi-camera", "id": "camera", "top": -200, "left": 240, "attrs": { "label": "IMX708 12MP" } },
+    { "type": "chip-usb-microphone", "id": "mic", "top": 300, "left": 530, "attrs": { "label": "USB Mic" } }
+  ],
+  "connections": [
+    ["pi3:GPIO5", "l298_L:IN1", "blue", []],
+    ["pi3:GPIO6", "l298_L:IN2", "blue", []],
+    ["pi3:GPIO12", "l298_L:ENA", "#2196f3", []],
+    ["pi3:GPIO19", "l298_L:IN3", "blue", []],
+    ["pi3:GPIO26", "l298_L:IN4", "blue", []],
+    ["pi3:GPIO13", "l298_L:ENB", "#2196f3", []],
+
+    ["pi3:GPIO20", "l298_R:IN1", "purple", []],
+    ["pi3:GPIO21", "l298_R:IN2", "purple", []],
+    ["pi3:GPIO16", "l298_R:ENA", "#9c27b0", []],
+    ["pi3:GPIO8", "l298_R:IN3", "purple", []],
+    ["pi3:GPIO7", "l298_R:IN4", "purple", []],
+    ["pi3:GPIO25", "l298_R:ENB", "#9c27b0", []],
+
+    ["l298_L:OUT1", "motor_fl:TERM1", "orange", []],
+    ["l298_L:OUT2", "motor_fl:TERM2", "orange", []],
+    ["l298_L:OUT3", "motor_rl:TERM1", "orange", []],
+    ["l298_L:OUT4", "motor_rl:TERM2", "orange", []],
+
+    ["l298_R:OUT1", "motor_fr:TERM1", "orange", []],
+    ["l298_R:OUT2", "motor_fr:TERM2", "orange", []],
+    ["l298_R:OUT3", "motor_rr:TERM1", "orange", []],
+    ["l298_R:OUT4", "motor_rr:TERM2", "orange", []],
+
+    ["pi3:5V", "sonar:VCC", "red", []],
+    ["pi3:GND.2", "sonar:GND", "black", []],
+    ["pi3:GPIO17", "sonar:TRIG", "green", []],
+
+    ["sonar:ECHO", "r1:1", "yellow", []],
+    ["r1:2", "pi3:GPIO27", "yellow", []],
+    ["r1:2", "r2:1", "yellow", []],
+    ["r2:2", "pi3:GND.3", "black", []],
+
+    ["pi3:GND.1", "l298_L:GND", "black", []],
+    ["pi3:GND.5", "l298_R:GND", "black", []],
+
+    ["psu_motor:POS", "l298_L:12V", "red", []],
+    ["psu_motor:NEG", "l298_L:GND2", "black", []],
+    ["psu_motor:POS", "l298_R:12V", "red", []],
+    ["psu_motor:NEG", "l298_R:GND2", "black", []],
+
+    ["camera:CSI", "pi3:CSI", "#78909c", []],
+
+    ["mic:USB", "pi3:USB1", "#78909c", []]
+  ]
+}
