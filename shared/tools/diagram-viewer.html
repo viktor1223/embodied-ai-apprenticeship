@@ -78,6 +78,24 @@ header .load-btn:hover { background: #1a3a6e; }
 .legend { position: absolute; bottom: 12px; left: 12px; background: rgba(22,33,62,0.9); border: 1px solid #0f3460; border-radius: 6px; padding: 8px 12px; font-size: 10px; }
 .legend-item { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Power analysis */
+.power-summary { background: #1a1a2e; border: 1px solid #0f3460; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.power-summary h4 { font-size: 11px; color: #7ec8e3; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.power-node { background: #111; border-radius: 6px; padding: 10px; margin: 8px 0; border-left: 3px solid #555; }
+.power-node.ok { border-left-color: #4caf50; }
+.power-node.warn { border-left-color: #ff9800; }
+.power-node.fail { border-left-color: #f44336; }
+.power-node .label { font-size: 12px; font-weight: 600; font-family: monospace; margin-bottom: 4px; }
+.power-node .detail { font-size: 10px; color: #aaa; line-height: 1.6; }
+.power-node .detail .val { color: #fff; }
+.power-verdict { margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 12px; font-weight: 600; text-align: center; }
+.power-verdict.pass { background: rgba(76,175,80,0.15); color: #4caf50; border: 1px solid #4caf50; }
+.power-verdict.fail { background: rgba(244,67,54,0.15); color: #f44336; border: 1px solid #f44336; }
+.power-verdict.warn { background: rgba(255,152,0,0.15); color: #ff9800; border: 1px solid #ff9800; }
+.power-rail { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 11px; font-family: monospace; }
+.power-rail .bar { flex: 1; height: 6px; background: #333; border-radius: 3px; position: relative; overflow: hidden; }
+.power-rail .bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
 </style>
 </head>
 <body>
@@ -107,7 +125,7 @@ header .load-btn:hover { background: #1a3a6e; }
       <p>Load a project's <code>diagram.json</code> to visualize the circuit.</p>
       <p>Optionally load <code>src/main.cpp</code> to see the firmware code.</p>
       <p style="margin-top: 16px; color: #666;">Drag &amp; drop files anywhere, or use the buttons above.</p>
-      <p style="margin-top: 24px; font-size: 11px; color: #444;">Supports: Arduino Uno, Raspberry Pi 3, LEDs, Potentiometers, Resistors, Servos, PCA9685, HC-SR04, L298N, DC Motors</p>
+      <p style="margin-top: 24px; font-size: 11px; color: #444;">Supports: Arduino Uno, LEDs, Potentiometers, Resistors, Servos, L298N, DC Motors</p>
     </div>
     <svg id="circuit-svg" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg" style="display:none;">
       <defs>
@@ -123,6 +141,7 @@ header .load-btn:hover { background: #1a3a6e; }
   <div class="right-panel">
     <div class="tab-bar">
       <button class="active" data-tab="info">Info</button>
+      <button data-tab="power">Power</button>
       <button data-tab="source">Source</button>
       <button data-tab="controls">Controls</button>
     </div>
@@ -131,6 +150,11 @@ header .load-btn:hover { background: #1a3a6e; }
         <p style="color:#666;font-size:12px;">Load a diagram to see component and connection details.</p>
       </div>
       <div id="infoContent" style="display:none;"></div>
+    </div>
+    <div class="tab-content" id="tab-power">
+      <div id="powerContent">
+        <p style="color:#666;font-size:12px;">Load a diagram to run power analysis.</p>
+      </div>
     </div>
     <div class="tab-content" id="tab-source">
       <div class="source-code" id="sourceCode">// No source file loaded yet.
@@ -321,239 +345,19 @@ const COMPONENT_REGISTRY = {
     }
   },
 
-  'chip-csi-camera': {
-    width: 120, height: 80,
-    pins: { 'CSI': {x: 60, y: 80} },
+  'chip-battery': {
+    width: 60, height: 40,
+    pins: { '+': {x: 60, y: 12}, '-': {x: 60, y: 28} },
     render(g, part) {
-      const label = (part.attrs && part.attrs.label) || 'CSI Camera';
+      const v = (part.attrs && part.attrs.voltage) || '6';
       g.innerHTML = `
-        <rect width="120" height="80" rx="6" fill="#263238" stroke="#455a64" stroke-width="2"/>
-        <!-- Lens -->
-        <circle cx="60" cy="32" r="22" fill="#37474f" stroke="#607d8b" stroke-width="2"/>
-        <circle cx="60" cy="32" r="16" fill="#1a237e" stroke="#283593" stroke-width="1.5"/>
-        <circle cx="60" cy="32" r="9" fill="#0d47a1" stroke="#1565c0" stroke-width="1"/>
-        <circle cx="60" cy="32" r="4" fill="#42a5f5"/>
-        <!-- LED -->
-        <circle cx="96" cy="14" r="3" fill="#f44336" opacity="0.7"/>
-        <!-- Label -->
-        <text x="60" y="68" text-anchor="middle" font-family="monospace" font-size="7" font-weight="bold" fill="#b0bec5">${label}</text>
-        <!-- Ribbon cable -->
-        <rect x="45" y="75" width="30" height="8" rx="1" fill="#78909c" stroke="#90a4ae"/>
-        <line x1="50" y1="76" x2="50" y2="82" stroke="#546e7a" stroke-width="0.5"/>
-        <line x1="55" y1="76" x2="55" y2="82" stroke="#546e7a" stroke-width="0.5"/>
-        <line x1="60" y1="76" x2="60" y2="82" stroke="#546e7a" stroke-width="0.5"/>
-        <line x1="65" y1="76" x2="65" y2="82" stroke="#546e7a" stroke-width="0.5"/>
-        <line x1="70" y1="76" x2="70" y2="82" stroke="#546e7a" stroke-width="0.5"/>
-      `;
-    }
-  },
-
-  'chip-usb-microphone': {
-    width: 80, height: 65,
-    pins: { 'USB': {x: 40, y: 65} },
-    render(g, part) {
-      const label = (part.attrs && part.attrs.label) || 'USB Mic';
-      g.innerHTML = `
-        <rect width="80" height="65" rx="6" fill="#37474f" stroke="#546e7a" stroke-width="2"/>
-        <!-- Mic grille -->
-        <circle cx="40" cy="24" r="16" fill="#263238" stroke="#455a64" stroke-width="1.5"/>
-        <circle cx="40" cy="24" r="12" fill="#1a1a2e"/>
-        ${[0,1,2,3,4,5].map(i => {
-          const a = i * 60 * Math.PI / 180;
-          return `<circle cx="${40 + 8*Math.cos(a)}" cy="${24 + 8*Math.sin(a)}" r="1" fill="#455a64"/>`;
-        }).join('')}
-        <circle cx="40" cy="24" r="2" fill="#455a64"/>
-        <!-- LED indicator -->
-        <circle cx="64" cy="10" r="2.5" fill="#4caf50" opacity="0.8"/>
-        <!-- Label -->
-        <text x="40" y="50" text-anchor="middle" font-family="monospace" font-size="7" font-weight="bold" fill="#b0bec5">${label}</text>
-        <!-- USB plug -->
-        <rect x="30" y="58" width="20" height="9" rx="2" fill="#555" stroke="#777"/>
-        <rect x="34" y="60" width="12" height="5" rx="1" fill="#333"/>
-        <circle cx="40" cy="65" r="3" fill="#78909c"/>
-      `;
-    }
-  },
-
-  'chip-usb-powerbank': {
-    width: 110, height: 55,
-    pins: { 'VOUT': {x: 110, y: 18}, 'GND': {x: 110, y: 38} },
-    render(g, part) {
-      const label = (part.attrs && part.attrs.label) || '5V 3A';
-      g.innerHTML = `
-        <rect width="110" height="55" rx="6" fill="#37474f" stroke="#546e7a" stroke-width="2"/>
-        <rect x="8" y="8" width="70" height="14" rx="3" fill="#4caf50" opacity="0.7"/>
-        <rect x="8" y="8" width="50" height="14" rx="3" fill="#4caf50"/>
-        <text x="55" y="38" text-anchor="middle" font-family="monospace" font-size="9" font-weight="bold" fill="#fff">POWER BANK</text>
-        <text x="55" y="50" text-anchor="middle" font-family="monospace" font-size="7" fill="#90a4ae">${label}</text>
-        <rect x="100" y="12" width="10" height="10" rx="2" fill="#333" stroke="#555"/>
-        <text x="105" y="19" text-anchor="middle" font-size="4" fill="#aaa">USB</text>
-        <circle cx="110" cy="18" r="3" fill="#f44336"/>
-        <circle cx="110" cy="38" r="3" fill="#555"/>
-        <text x="97" y="20" text-anchor="end" font-size="5" fill="#f44336">+</text>
-        <text x="97" y="40" text-anchor="end" font-size="5" fill="#888">−</text>
-      `;
-    }
-  },
-
-  'chip-battery-pack': {
-    width: 100, height: 55,
-    pins: { 'POS': {x: 100, y: 18}, 'NEG': {x: 100, y: 38} },
-    render(g, part) {
-      const label = (part.attrs && part.attrs.label) || '4×AA 6V';
-      g.innerHTML = `
-        <rect width="100" height="55" rx="6" fill="#4e342e" stroke="#6d4c41" stroke-width="2"/>
-        <!-- Battery cells -->
-        <rect x="8" y="10" width="18" height="34" rx="2" fill="#fdd835" stroke="#f9a825" stroke-width="1"/>
-        <rect x="10" y="7" width="5" height="4" rx="1" fill="#aaa"/>
-        <rect x="28" y="10" width="18" height="34" rx="2" fill="#fdd835" stroke="#f9a825" stroke-width="1"/>
-        <rect x="30" y="7" width="5" height="4" rx="1" fill="#aaa"/>
-        <rect x="48" y="10" width="18" height="34" rx="2" fill="#fdd835" stroke="#f9a825" stroke-width="1"/>
-        <rect x="50" y="7" width="5" height="4" rx="1" fill="#aaa"/>
-        <rect x="68" y="10" width="18" height="34" rx="2" fill="#fdd835" stroke="#f9a825" stroke-width="1"/>
-        <rect x="70" y="7" width="5" height="4" rx="1" fill="#aaa"/>
-        <text x="50" y="52" text-anchor="middle" font-family="monospace" font-size="7" fill="#bcaaa4">${label}</text>
-        <circle cx="100" cy="18" r="3" fill="#f44336"/>
-        <circle cx="100" cy="38" r="3" fill="#555"/>
-        <text x="93" y="20" text-anchor="end" font-size="5" fill="#f44336">+</text>
-        <text x="93" y="40" text-anchor="end" font-size="5" fill="#888">−</text>
-      `;
-    }
-  },
-
-  'chip-raspberrypi3': {
-    width: 200, height: 280,
-    pins: {
-      // Left column (odd physical pins): 3V3, GPIO2-GPIO11
-      '3V3': {x: 0, y: 30}, 'GPIO2': {x: 0, y: 46}, 'GPIO3': {x: 0, y: 62},
-      'GPIO4': {x: 0, y: 78}, 'GND.1': {x: 0, y: 94}, 'GPIO17': {x: 0, y: 110},
-      'GPIO27': {x: 0, y: 126}, 'GPIO22': {x: 0, y: 142}, '3V3.2': {x: 0, y: 158},
-      'GPIO10': {x: 0, y: 174}, 'GPIO9': {x: 0, y: 190}, 'GPIO11': {x: 0, y: 206},
-      'GND.4': {x: 0, y: 222}, 'GPIO0': {x: 0, y: 238}, 'GPIO5': {x: 0, y: 254},
-      'GPIO6': {x: 0, y: 270}, 'GPIO13': {x: 0, y: 286}, 'GPIO19': {x: 0, y: 302},
-      'GPIO26': {x: 0, y: 318}, 'GND.6': {x: 0, y: 334},
-      // Right column (even physical pins): 5V, GND, GPIO14-GPIO21
-      '5V': {x: 200, y: 30}, '5V.2': {x: 200, y: 46}, 'GND.2': {x: 200, y: 62},
-      'GPIO14': {x: 200, y: 78}, 'GPIO15': {x: 200, y: 94}, 'GPIO18': {x: 200, y: 110},
-      'GND.3': {x: 200, y: 126}, 'GPIO23': {x: 200, y: 142}, 'GPIO24': {x: 200, y: 158},
-      'GND.5': {x: 200, y: 174}, 'GPIO25': {x: 200, y: 190}, 'GPIO8': {x: 200, y: 206},
-      'GPIO7': {x: 200, y: 222}, 'GPIO1': {x: 200, y: 238}, 'GPIO12': {x: 200, y: 254},
-      'GND.7': {x: 200, y: 270}, 'GPIO16': {x: 200, y: 286}, 'GPIO20': {x: 200, y: 302},
-      'GPIO21': {x: 200, y: 318},
-      // Dedicated ports (not on GPIO header)
-      'CSI': {x: 100, y: 0}, 'USB1': {x: 200, y: 350}, 'USB2': {x: 200, y: 366},
-    },
-    render(g, part) {
-      // Board body
-      g.innerHTML = `
-        <rect width="200" height="380" rx="8" fill="#2e7d32" stroke="#1b5e20" stroke-width="2"/>
-        <rect x="15" y="8" width="170" height="36" rx="4" fill="#1b5e20"/>
-        <text x="100" y="24" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#fff">RASPBERRY PI 3</text>
-        <text x="100" y="38" text-anchor="middle" font-family="monospace" font-size="7" fill="#a5d6a7">BCM2837 · 1GB RAM</text>
-        <!-- CSI camera port -->
-        <rect x="65" y="46" width="70" height="14" rx="3" fill="#444" stroke="#666" stroke-width="1.5"/>
-        <rect x="68" y="48" width="64" height="10" rx="2" fill="#333"/>
-        <!-- ribbon cable lines inside connector -->
-        ${[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14].map(i => `<line x1="${72+i*4}" y1="49" x2="${72+i*4}" y2="57" stroke="#555" stroke-width="0.7"/>`).join('')}
-        <text x="100" y="70" text-anchor="middle" font-size="7" font-weight="bold" fill="#a5d6a7">CSI CAMERA</text>
-        <!-- CSI pin dot at top edge -->
-        <circle cx="100" cy="0" r="4" fill="#78909c" stroke="#546e7a" stroke-width="1"/>
-        <line x1="100" y1="4" x2="100" y2="46" stroke="#78909c" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <!-- USB ports -->
-        <rect x="172" y="342" width="28" height="14" rx="2" fill="#333" stroke="#555"/>
-        <text x="186" y="351" text-anchor="middle" font-size="5" fill="#aaa">USB1</text>
-        <rect x="172" y="360" width="28" height="14" rx="2" fill="#333" stroke="#555"/>
-        <text x="186" y="369" text-anchor="middle" font-size="5" fill="#aaa">USB2</text>
-        <!-- GPIO header label -->
-        <text x="100" y="84" text-anchor="middle" font-size="7" fill="#a5d6a7" font-weight="bold">── GPIO HEADER ──</text>
-        <!-- Left column pins -->
-        ${['3V3','GPIO2','GPIO3','GPIO4','GND.1','GPIO17','GPIO27','GPIO22','3V3.2','GPIO10','GPIO9','GPIO11','GND.4','GPIO0','GPIO5','GPIO6','GPIO13','GPIO19','GPIO26','GND.6'].map((n,i) => {
-          const p = this.pins[n];
-          const isGnd = n.startsWith('GND');
-          const isPwr = n.startsWith('3V3') || n.startsWith('5V');
-          const isI2C = n === 'GPIO2' || n === 'GPIO3';
-          const fill = isGnd ? '#555' : isPwr ? '#f44336' : isI2C ? '#2196f3' : '#fdd835';
-          const label = n.replace('.1','').replace('.2','').replace('.4','').replace('.6','');
-          return `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${fill}"/><text x="${p.x+8}" y="${p.y+3}" font-size="6" fill="#ccc" font-family="monospace">${label}</text>`;
-        }).join('')}
-        <!-- Right column pins -->
-        ${['5V','5V.2','GND.2','GPIO14','GPIO15','GPIO18','GND.3','GPIO23','GPIO24','GND.5','GPIO25','GPIO8','GPIO7','GPIO1','GPIO12','GND.7','GPIO16','GPIO20','GPIO21'].map((n,i) => {
-          const p = this.pins[n];
-          const isGnd = n.startsWith('GND');
-          const isPwr = n.startsWith('5V');
-          const fill = isGnd ? '#555' : isPwr ? '#f44336' : '#fdd835';
-          const label = n.replace('.2','').replace('.3','').replace('.5','').replace('.7','');
-          return `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${fill}"/><text x="${p.x-8}" y="${p.y+3}" text-anchor="end" font-size="6" fill="#ccc" font-family="monospace">${label}</text>`;
-        }).join('')}
-      `;
-    }
-  },
-
-  'chip-pca9685': {
-    width: 130, height: 160,
-    pins: {
-      // I2C + power (left side)
-      'VCC': {x: 0, y: 30}, 'GND': {x: 0, y: 50}, 'SDA': {x: 0, y: 70}, 'SCL': {x: 0, y: 90},
-      // Servo power (bottom)
-      'V+': {x: 40, y: 160}, 'GNDM': {x: 90, y: 160},
-      // Servo channels (right side)
-      'CH0': {x: 130, y: 20}, 'CH1': {x: 130, y: 38}, 'CH2': {x: 130, y: 56}, 'CH3': {x: 130, y: 74},
-      'CH4': {x: 130, y: 92}, 'CH5': {x: 130, y: 110}, 'CH6': {x: 130, y: 128}, 'CH7': {x: 130, y: 146},
-    },
-    render(g, part) {
-      g.innerHTML = `
-        <rect width="130" height="160" rx="6" fill="#4a148c" stroke="#6a1b9a" stroke-width="2"/>
-        <rect x="10" y="6" width="110" height="28" rx="3" fill="#311b92"/>
-        <text x="65" y="20" text-anchor="middle" font-family="monospace" font-size="10" font-weight="bold" fill="#fff">PCA9685</text>
-        <text x="65" y="30" text-anchor="middle" font-family="monospace" font-size="6" fill="#ce93d8">16-CH PWM · I2C 0x40</text>
-        <!-- I2C + power pins (left) -->
-        ${[['VCC',30,'#f44336'],['GND',50,'#555'],['SDA',70,'#2196f3'],['SCL',90,'#2196f3']].map(([n,y,c]) =>
-          `<circle cx="0" cy="${y}" r="3.5" fill="${c}"/><text x="8" y="${y+3}" font-size="7" fill="#fff" font-family="monospace">${n}</text>`
-        ).join('')}
-        <!-- Servo power (bottom) -->
-        <circle cx="40" cy="160" r="3.5" fill="#f44336"/>
-        <text x="40" y="152" text-anchor="middle" font-size="6" fill="#ce93d8">V+</text>
-        <circle cx="90" cy="160" r="3.5" fill="#555"/>
-        <text x="90" y="152" text-anchor="middle" font-size="6" fill="#ce93d8">GND</text>
-        <!-- Channel pins (right) -->
-        ${[0,1,2,3,4,5,6,7].map(i => {
-          const y = 20 + i * 18;
-          return `<circle cx="130" cy="${y}" r="3" fill="#ff9800"/><text x="122" y="${y+3}" text-anchor="end" font-size="6" fill="#fff" font-family="monospace">CH${i}</text>`;
-        }).join('')}
-        <!-- Channel zone labels -->
-        <text x="115" y="46" text-anchor="end" font-size="5" fill="#ce93d8">FL</text>
-        <text x="115" y="64" text-anchor="end" font-size="5" fill="#ce93d8">FR</text>
-        <text x="115" y="82" text-anchor="end" font-size="5" fill="#ce93d8">RL</text>
-        <text x="115" y="100" text-anchor="end" font-size="5" fill="#ce93d8">RR</text>
-      `;
-    }
-  },
-
-  'chip-hc-sr04': {
-    width: 100, height: 70,
-    pins: {
-      'VCC': {x: 15, y: 70}, 'TRIG': {x: 38, y: 70}, 'ECHO': {x: 62, y: 70}, 'GND': {x: 85, y: 70}
-    },
-    render(g, part) {
-      g.innerHTML = `
-        <rect width="100" height="55" rx="4" fill="#006064" stroke="#00838f" stroke-width="1.5"/>
-        <!-- Ultrasonic transducers -->
-        <circle cx="28" cy="25" r="14" fill="#263238" stroke="#37474f" stroke-width="1.5"/>
-        <circle cx="28" cy="25" r="8" fill="#37474f"/>
-        <circle cx="72" cy="25" r="14" fill="#263238" stroke="#37474f" stroke-width="1.5"/>
-        <circle cx="72" cy="25" r="8" fill="#37474f"/>
-        <text x="28" y="28" text-anchor="middle" font-size="5" fill="#80cbc4">TX</text>
-        <text x="72" y="28" text-anchor="middle" font-size="5" fill="#80cbc4">RX</text>
-        <text x="50" y="50" text-anchor="middle" font-family="monospace" font-size="8" font-weight="bold" fill="#fff">HC-SR04</text>
-        <!-- Pins -->
-        <rect x="12" y="55" width="5" height="15" fill="#aaa" rx="1"/>
-        <rect x="35" y="55" width="5" height="15" fill="#aaa" rx="1"/>
-        <rect x="59" y="55" width="5" height="15" fill="#aaa" rx="1"/>
-        <rect x="82" y="55" width="5" height="15" fill="#aaa" rx="1"/>
-        <text x="15" y="78" text-anchor="middle" font-size="5" fill="#888">VCC</text>
-        <text x="38" y="78" text-anchor="middle" font-size="5" fill="#888">TRIG</text>
-        <text x="62" y="78" text-anchor="middle" font-size="5" fill="#888">ECHO</text>
-        <text x="85" y="78" text-anchor="middle" font-size="5" fill="#888">GND</text>
+        <rect width="50" height="40" rx="3" fill="#333" stroke="#555" stroke-width="1.5"/>
+        <rect x="50" y="8" width="6" height="8" fill="#f44336" rx="1"/>
+        <rect x="50" y="24" width="6" height="8" fill="#333" rx="1" stroke="#555"/>
+        <text x="25" y="18" text-anchor="middle" font-size="8" fill="#fff" font-weight="bold">${v}V</text>
+        <text x="25" y="32" text-anchor="middle" font-size="6" fill="#888">4×AA</text>
+        <text x="58" y="12" font-size="5" fill="#f44336">+</text>
+        <text x="58" y="34" font-size="5" fill="#888">−</text>
       `;
     }
   }
@@ -637,6 +441,386 @@ function loadSourceFile(file) {
     document.getElementById('tab-source').classList.add('active');
   };
   reader.readAsText(file);
+}
+
+// ─────────────────────────────────────────────────────
+// POWER ANALYSIS ENGINE
+// ─────────────────────────────────────────────────────
+
+// Electrical specs per component type
+// Each defines: role, voltage/current ratings, pin roles
+const POWER_SPECS = {
+  'wokwi-arduino-uno': {
+    role: 'controller',
+    supplyVoltage: { min: 4.5, max: 5.5, nominal: 5 },  // USB power
+    outputCurrentPerPin: 0.040,  // 40mA max per I/O pin
+    totalOutputCurrent: 0.200,   // 200mA total from all I/O
+    provides5V: true,            // 5V regulator output
+    powerPins: { '5V': 'supply-out', 'GND': 'ground', 'GND.1': 'ground', 'VIN': 'supply-in' },
+    description: 'Microcontroller (5V logic, USB-powered)'
+  },
+  'chip-l298n': {
+    role: 'driver',
+    voltageDrop: 2.0,           // ~2V saturation drop across H-bridge
+    quiescentCurrent: 0.036,    // 36mA idle draw
+    maxCurrentPerChannel: 2.0,  // 2A per channel
+    maxVoltageIn: 46,           // Absolute max motor supply
+    minVoltageIn: 5,            // Minimum to function
+    logicVoltage: { min: 4.5, max: 7 },
+    powerPins: {
+      '12V': 'motor-supply-in', 'GND': 'logic-ground', 'GND2': 'motor-ground',
+      '5V': 'logic-supply', 'OUT1': 'motor-out', 'OUT2': 'motor-out',
+      'OUT3': 'motor-out', 'OUT4': 'motor-out'
+    },
+    description: 'Dual H-Bridge Motor Driver'
+  },
+  'chip-dc-motor': {
+    role: 'load',
+    operatingVoltage: { min: 3.0, max: 6.0, nominal: 6 },
+    stallCurrent: 0.800,        // 800mA stall
+    runningCurrent: 0.200,      // 200mA typical no-load
+    powerPins: { 'TERM1': 'motor-in', 'TERM2': 'motor-in' },
+    description: 'DC Motor'
+  },
+  'chip-battery': {
+    role: 'source',
+    maxCurrent: 1.5,            // AA cells ~1.5A burst
+    sustainedCurrent: 0.500,    // 500mA sustained comfortable
+    internalResistance: 0.4,    // ~0.4Ω for 4 cells in series
+    powerPins: { '+': 'supply-out', '-': 'ground' },
+    description: 'Battery Pack'
+  },
+  'wokwi-led': {
+    role: 'load',
+    operatingVoltage: { min: 1.8, max: 3.3, nominal: 2.0 },
+    operatingCurrent: 0.020,    // 20mA typical
+    maxCurrent: 0.030,          // 30mA absolute max
+    powerPins: { 'A': 'anode', 'C': 'cathode' },
+    description: 'LED'
+  },
+  'wokwi-resistor': {
+    role: 'passive',
+    description: 'Resistor'
+  },
+  'wokwi-potentiometer': {
+    role: 'passive',
+    description: 'Potentiometer'
+  },
+  'wokwi-servo': {
+    role: 'load',
+    operatingVoltage: { min: 4.8, max: 6.0, nominal: 5.0 },
+    operatingCurrent: 0.200,    // 200mA typical
+    stallCurrent: 0.750,        // 750mA stall
+    powerPins: { 'V+': 'supply-in', 'GND': 'ground' },
+    description: 'Servo Motor'
+  }
+};
+
+function runPowerAnalysis() {
+  if (!diagram) return;
+
+  const parts = diagram.parts || [];
+  const connections = diagram.connections || [];
+  const results = { nodes: [], rails: [], issues: [], verdict: 'pass' };
+
+  // Build adjacency: which pins are connected to which
+  const pinGraph = {};  // "partId:pin" -> Set of connected "partId:pin"
+  connections.forEach(conn => {
+    if (!conn || conn.length < 3) return;
+    const [a, b] = conn;
+    if (!pinGraph[a]) pinGraph[a] = new Set();
+    if (!pinGraph[b]) pinGraph[b] = new Set();
+    pinGraph[a].add(b);
+    pinGraph[b].add(a);
+  });
+
+  // Identify power sources and their voltages
+  const sources = [];
+  parts.forEach(part => {
+    const spec = POWER_SPECS[part.type];
+    if (!spec) return;
+    if (spec.role === 'source') {
+      const voltage = parseFloat((part.attrs && part.attrs.voltage) || '6');
+      sources.push({ part, spec, voltage, maxCurrent: spec.maxCurrent || 1.0 });
+    }
+    if (spec.provides5V) {
+      sources.push({ part, spec, voltage: 5.0, maxCurrent: 0.5, rail: '5V-USB' });
+    }
+  });
+
+  // Trace power paths from each source
+  const componentPower = {};  // partId -> { receivedVoltage, sourcePath, issues[] }
+
+  sources.forEach(src => {
+    const srcId = src.part.id;
+    const spec = src.spec;
+
+    // Find what the source's + pin connects to
+    let supplyPin = null;
+    if (spec.role === 'source') {
+      supplyPin = `${srcId}:+`;
+    } else if (spec.provides5V) {
+      supplyPin = `${srcId}:5V`;
+    }
+
+    if (!supplyPin || !pinGraph[supplyPin]) return;
+
+    // Trace connections from this supply pin
+    const visited = new Set();
+    const queue = [{ pin: supplyPin, voltage: src.voltage, path: [supplyPin] }];
+
+    while (queue.length > 0) {
+      const { pin, voltage, path } = queue.shift();
+      if (visited.has(pin)) continue;
+      visited.add(pin);
+
+      const connected = pinGraph[pin];
+      if (!connected) continue;
+
+      for (const destPin of connected) {
+        if (visited.has(destPin)) continue;
+
+        const [destPartId, destPinName] = splitPin(destPin);
+        const destPart = parts.find(p => p.id === destPartId);
+        if (!destPart) continue;
+
+        const destSpec = POWER_SPECS[destPart.type];
+        if (!destSpec) continue;
+
+        const pinRole = destSpec.powerPins && destSpec.powerPins[destPinName];
+
+        // Record what voltage arrives at this component
+        if (pinRole === 'motor-supply-in' || pinRole === 'supply-in') {
+          if (!componentPower[destPartId]) componentPower[destPartId] = { receivedVoltage: 0, sources: [], issues: [] };
+          componentPower[destPartId].receivedVoltage = voltage;
+          componentPower[destPartId].sources.push({ from: srcId, voltage, pin: destPinName });
+
+          // If this is a driver (L298N), trace its outputs with voltage drop
+          if (destSpec.role === 'driver' && destSpec.voltageDrop) {
+            const outputVoltage = voltage - destSpec.voltageDrop;
+            // Find output pins of this driver
+            Object.entries(destSpec.powerPins).forEach(([pName, pRole]) => {
+              if (pRole === 'motor-out') {
+                const outKey = `${destPartId}:${pName}`;
+                if (pinGraph[outKey]) {
+                  queue.push({ pin: outKey, voltage: outputVoltage, path: [...path, destPin, outKey] });
+                }
+              }
+            });
+          }
+        } else if (pinRole === 'motor-in' || pinRole === 'anode') {
+          if (!componentPower[destPartId]) componentPower[destPartId] = { receivedVoltage: 0, sources: [], issues: [] };
+          componentPower[destPartId].receivedVoltage = voltage;
+          componentPower[destPartId].sources.push({ from: srcId, voltage, pin: destPinName, via: path });
+        }
+      }
+    }
+  });
+
+  // Now validate each component's power requirements
+  parts.forEach(part => {
+    const spec = POWER_SPECS[part.type];
+    if (!spec) return;
+
+    const power = componentPower[part.id];
+    const node = { id: part.id, type: part.type, spec, status: 'ok', messages: [] };
+
+    if (spec.role === 'source') {
+      // Sources are always OK (they provide power)
+      node.messages.push(`Supplies ${sources.find(s => s.part.id === part.id)?.voltage || '?'}V`);
+      node.voltageOut = sources.find(s => s.part.id === part.id)?.voltage;
+    } else if (spec.role === 'controller') {
+      node.messages.push('USB powered (5V)');
+      node.voltageIn = 5;
+    } else if (spec.role === 'driver') {
+      if (!power || power.receivedVoltage === 0) {
+        node.status = 'fail';
+        node.messages.push('NO POWER SOURCE connected to motor supply pin');
+        results.issues.push({ severity: 'error', part: part.id, msg: 'No motor supply voltage — motors will not spin' });
+      } else {
+        node.voltageIn = power.receivedVoltage;
+        const outputV = power.receivedVoltage - spec.voltageDrop;
+        node.voltageOut = outputV;
+        node.messages.push(`Input: ${power.receivedVoltage}V → Output: ~${outputV.toFixed(1)}V (after ${spec.voltageDrop}V drop)`);
+
+        if (power.receivedVoltage < spec.minVoltageIn) {
+          node.status = 'fail';
+          node.messages.push(`⚠ Input ${power.receivedVoltage}V below minimum ${spec.minVoltageIn}V`);
+          results.issues.push({ severity: 'error', part: part.id, msg: `Supply voltage too low (${power.receivedVoltage}V < ${spec.minVoltageIn}V min)` });
+        } else if (power.receivedVoltage > spec.maxVoltageIn) {
+          node.status = 'fail';
+          node.messages.push(`💥 Input ${power.receivedVoltage}V EXCEEDS maximum ${spec.maxVoltageIn}V — WILL DAMAGE`);
+          results.issues.push({ severity: 'error', part: part.id, msg: `OVERVOLTAGE: ${power.receivedVoltage}V exceeds ${spec.maxVoltageIn}V max — component will be destroyed` });
+        }
+      }
+    } else if (spec.role === 'load') {
+      if (!power || power.receivedVoltage === 0) {
+        node.status = 'warn';
+        node.messages.push('No direct power path traced (may be driven by controller pins)');
+
+        // Check if it's a motor connected to a driver
+        if (part.type === 'chip-dc-motor') {
+          // See if connected to an L298N output
+          const termPins = [`${part.id}:TERM1`, `${part.id}:TERM2`];
+          let driverFound = null;
+          termPins.forEach(tp => {
+            if (pinGraph[tp]) {
+              for (const connected of pinGraph[tp]) {
+                const [cId] = splitPin(connected);
+                const cPart = parts.find(p => p.id === cId);
+                if (cPart && cPart.type === 'chip-l298n') driverFound = cId;
+              }
+            }
+          });
+
+          if (driverFound) {
+            const driverPower = componentPower[driverFound];
+            if (driverPower && driverPower.receivedVoltage > 0) {
+              const driverSpec = POWER_SPECS['chip-l298n'];
+              const motorVoltage = driverPower.receivedVoltage - driverSpec.voltageDrop;
+              node.voltageIn = motorVoltage;
+              node.messages = [`Via ${driverFound}: receives ~${motorVoltage.toFixed(1)}V`];
+
+              if (motorVoltage < spec.operatingVoltage.min) {
+                node.status = 'warn';
+                node.messages.push(`⚠ ${motorVoltage.toFixed(1)}V below minimum ${spec.operatingVoltage.min}V — motor may stall or run weakly`);
+                results.issues.push({ severity: 'warning', part: part.id, msg: `Undervoltage: ${motorVoltage.toFixed(1)}V < ${spec.operatingVoltage.min}V min — may not spin reliably` });
+              } else if (motorVoltage > spec.operatingVoltage.max) {
+                node.status = 'fail';
+                node.messages.push(`💥 ${motorVoltage.toFixed(1)}V EXCEEDS max ${spec.operatingVoltage.max}V — WILL OVERHEAT/DAMAGE`);
+                results.issues.push({ severity: 'error', part: part.id, msg: `OVERVOLTAGE: ${motorVoltage.toFixed(1)}V exceeds ${spec.operatingVoltage.max}V max` });
+              } else {
+                node.status = 'ok';
+                node.messages.push(`✓ Within operating range (${spec.operatingVoltage.min}–${spec.operatingVoltage.max}V)`);
+              }
+            } else {
+              node.status = 'fail';
+              node.messages = [`Connected to ${driverFound} but driver has no power supply`];
+              results.issues.push({ severity: 'error', part: part.id, msg: `Motor driver ${driverFound} has no power — motor will not spin` });
+            }
+          } else {
+            node.status = 'fail';
+            node.messages = ['Not connected to any motor driver or power source'];
+            results.issues.push({ severity: 'error', part: part.id, msg: 'No power path to motor' });
+          }
+        }
+      } else {
+        node.voltageIn = power.receivedVoltage;
+        node.messages.push(`Receives ${power.receivedVoltage.toFixed(1)}V`);
+
+        if (spec.operatingVoltage) {
+          if (power.receivedVoltage < spec.operatingVoltage.min) {
+            node.status = 'warn';
+            node.messages.push(`⚠ Below minimum ${spec.operatingVoltage.min}V`);
+            results.issues.push({ severity: 'warning', part: part.id, msg: `Undervoltage: ${power.receivedVoltage}V < ${spec.operatingVoltage.min}V` });
+          } else if (power.receivedVoltage > spec.operatingVoltage.max) {
+            node.status = 'fail';
+            node.messages.push(`💥 Exceeds maximum ${spec.operatingVoltage.max}V — DAMAGE RISK`);
+            results.issues.push({ severity: 'error', part: part.id, msg: `OVERVOLTAGE: ${power.receivedVoltage}V > ${spec.operatingVoltage.max}V` });
+          } else {
+            node.messages.push(`✓ Within range (${spec.operatingVoltage.min}–${spec.operatingVoltage.max}V)`);
+          }
+        }
+      }
+    }
+
+    results.nodes.push(node);
+  });
+
+  // Current budget analysis
+  const currentBudget = { totalDraw: 0, maxAvailable: 0, details: [] };
+  sources.forEach(src => {
+    currentBudget.maxAvailable += src.maxCurrent;
+  });
+
+  parts.forEach(part => {
+    const spec = POWER_SPECS[part.type];
+    if (!spec || spec.role === 'source' || spec.role === 'controller' || spec.role === 'passive') return;
+    if (spec.role === 'driver') {
+      currentBudget.totalDraw += spec.quiescentCurrent || 0;
+      currentBudget.details.push({ id: part.id, current: spec.quiescentCurrent || 0, note: 'quiescent' });
+    } else if (spec.role === 'load') {
+      const draw = spec.runningCurrent || spec.operatingCurrent || 0;
+      currentBudget.totalDraw += draw;
+      currentBudget.details.push({ id: part.id, current: draw, note: 'running' });
+    }
+  });
+
+  if (currentBudget.totalDraw > currentBudget.maxAvailable) {
+    results.issues.push({ severity: 'error', part: 'system', msg: `Total current draw (${(currentBudget.totalDraw*1000).toFixed(0)}mA) exceeds source capacity (${(currentBudget.maxAvailable*1000).toFixed(0)}mA)` });
+  }
+  results.currentBudget = currentBudget;
+
+  // Determine overall verdict
+  const hasErrors = results.issues.some(i => i.severity === 'error');
+  const hasWarnings = results.issues.some(i => i.severity === 'warning');
+  results.verdict = hasErrors ? 'fail' : hasWarnings ? 'warn' : 'pass';
+
+  renderPowerPanel(results);
+  return results;
+}
+
+function splitPin(ref) {
+  const idx = ref.indexOf(':');
+  return idx === -1 ? [ref, ''] : [ref.substring(0, idx), ref.substring(idx + 1)];
+}
+
+function renderPowerPanel(results) {
+  const container = document.getElementById('powerContent');
+  let html = '';
+
+  // Verdict banner
+  const verdictText = results.verdict === 'pass' ? '✓ POWER OK — All components within spec'
+    : results.verdict === 'warn' ? '⚠ WARNINGS — Some components may underperform'
+    : '✗ POWER FAIL — Circuit has critical power issues';
+  html += `<div class="power-verdict ${results.verdict}">${verdictText}</div>`;
+
+  // Issues list
+  if (results.issues.length > 0) {
+    html += '<div class="power-summary"><h4>Issues</h4>';
+    results.issues.forEach(issue => {
+      const icon = issue.severity === 'error' ? '🔴' : '🟡';
+      html += `<div style="font-size:11px;padding:4px 0;color:${issue.severity === 'error' ? '#f44336' : '#ff9800'};">${icon} <b>${issue.part}</b>: ${issue.msg}</div>`;
+    });
+    html += '</div>';
+  }
+
+  // Current budget
+  const cb = results.currentBudget;
+  if (cb) {
+    const pct = cb.maxAvailable > 0 ? Math.min(100, (cb.totalDraw / cb.maxAvailable) * 100) : 0;
+    const barColor = pct > 100 ? '#f44336' : pct > 80 ? '#ff9800' : '#4caf50';
+    html += '<div class="power-summary"><h4>Current Budget</h4>';
+    html += `<div class="power-rail"><span style="min-width:80px;color:#aaa;">Total draw</span><div class="bar"><div class="bar-fill" style="width:${Math.min(100,pct)}%;background:${barColor};"></div></div><span style="min-width:70px;text-align:right;font-size:10px;">${(cb.totalDraw*1000).toFixed(0)}/${(cb.maxAvailable*1000).toFixed(0)} mA</span></div>`;
+    cb.details.forEach(d => {
+      html += `<div style="font-size:10px;color:#888;padding-left:12px;">${d.id}: ${(d.current*1000).toFixed(0)}mA (${d.note})</div>`;
+    });
+    html += '</div>';
+  }
+
+  // Per-component power nodes
+  html += '<div class="power-summary"><h4>Component Power Status</h4>';
+  results.nodes.forEach(node => {
+    html += `<div class="power-node ${node.status}">`;
+    html += `<div class="label">${node.id} <span style="color:#666;font-weight:normal;">(${node.spec.description})</span></div>`;
+    html += '<div class="detail">';
+    node.messages.forEach(msg => {
+      html += `<div>${msg}</div>`;
+    });
+    // Show voltage bar if applicable
+    if (node.voltageIn !== undefined && node.spec.operatingVoltage) {
+      const range = node.spec.operatingVoltage;
+      const pct = ((node.voltageIn - range.min) / (range.max - range.min)) * 100;
+      const clampPct = Math.max(0, Math.min(100, pct));
+      const color = node.status === 'ok' ? '#4caf50' : node.status === 'warn' ? '#ff9800' : '#f44336';
+      html += `<div class="power-rail" style="margin-top:4px;"><span style="min-width:50px;font-size:9px;">${range.min}V</span><div class="bar"><div class="bar-fill" style="width:${clampPct}%;background:${color};"></div></div><span style="min-width:50px;text-align:right;font-size:9px;">${range.max}V</span></div>`;
+      html += `<div style="font-size:9px;color:#aaa;text-align:center;">↑ ${node.voltageIn.toFixed(1)}V received</div>`;
+    }
+    html += '</div></div>';
+  });
+  html += '</div>';
+
+  container.innerHTML = html;
 }
 
 // ─────────────────────────────────────────────────────
@@ -745,6 +929,7 @@ function renderDiagram() {
   // Update info panel
   renderInfo(parts, connections);
   renderControls(parts);
+  runPowerAnalysis();
   updateBadge();
 }
 

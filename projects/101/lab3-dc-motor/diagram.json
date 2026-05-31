@@ -15,21 +15,28 @@
       "id": "l298n",
       "top": 50,
       "left": 300,
-      "attrs": { "Vs": "12" }
+      "attrs": { "Vs": "6" }
     },
     {
       "type": "chip-dc-motor",
       "id": "motorA",
       "top": -80,
       "left": 220,
-      "attrs": { "ratedV": "12" }
+      "attrs": { "ratedV": "6" }
     },
     {
       "type": "chip-dc-motor",
       "id": "motorB",
       "top": -80,
       "left": 400,
-      "attrs": { "ratedV": "12" }
+      "attrs": { "ratedV": "6" }
+    },
+    {
+      "type": "chip-battery",
+      "id": "batt",
+      "top": 60,
+      "left": 520,
+      "attrs": { "voltage": "6" }
     }
   ],
   "connections": [
@@ -45,7 +52,8 @@
     ["l298n:OUT4", "motorB:TERM2", "brown", ["v-40"]],
     ["uno:GND.1", "l298n:GND", "black", ["h0", "v-60"]],
     ["uno:5V", "l298n:5V", "red", ["h0", "v-60"]],
-    ["l298n:GND2", "l298n:GND", "black", ["v20", "h-20"]]
+    ["batt:+", "l298n:12V", "red", ["h-20", "v60"]],
+    ["batt:-", "l298n:GND2", "black", ["h-20", "v80"]]
   ],
   "serialMonitor": { "display": "auto" }
 }
